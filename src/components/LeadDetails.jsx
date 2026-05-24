@@ -1,0 +1,814 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  X, 
+  Save, 
+  Trash2, 
+  MapPin, 
+  Calendar, 
+  Phone, 
+  Mail, 
+  Sparkles,
+  ExternalLink,
+  MessageSquare,
+  Clock,
+  Compass,
+  RefreshCw,
+  Check
+} from 'lucide-react';
+import confetti from 'canvas-confetti';
+import { 
+  parseStringArray, 
+  parseJsonbField, 
+  formatDate,
+  calculateAILeadScore,
+  generateAISalesStrategy
+} from '../utils.js';
+
+const LeadDetails = ({ leadId, onClose, onSaveSuccess }) => {
+  const [lead, setLead] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [girosList, setGirosList] = useState([]); // Giros Lookup state
+  const [miembros, setMiembros] = useState([]); // Team Members list
+  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'success' | 'error'
+
+  // Editable Form states
+  const [form, setForm] = useState({
+    nombre: '',
+    estilo: '',
+    giro_id: '', // FK lookup
+    prioridad: '',
+    estatus: '',
+    owner: '',
+    miembro_id: '', // FK lookup for team members
+    contacto_nombre: '',
+    contacto_puesto: '',
+    sitio_web: '',
+    correo: '',
+    telefono: '',
+    whatsapp: '',
+    direccion1: '',
+    ciudad: '',
+    estado: '',
+    pais: '',
+    notas: '',
+    ficha_prospeccion: '',
+    canal_preferido: 'whatsapp'
+  });
+
+  // Load giros & team members dynamic options once
+  useEffect(() => {
+    const fetchGiros = async () => {
+      try {
+        const res = await fetch('/api/giros');
+        if (res.ok) {
+          const data = await res.json();
+          setGirosList(data);
+        }
+      } catch (err) {
+        console.error('Error fetching giros lookups:', err);
+      }
+    };
+    const fetchMiembros = async () => {
+      try {
+        const res = await fetch('/api/miembros');
+        if (res.ok) {
+          const data = await res.json();
+          setMiembros(data);
+        }
+      } catch (err) {
+        console.error('Error fetching team members catalog:', err);
+      }
+    };
+    fetchGiros();
+    fetchMiembros();
+  }, []);
+
+  // Fetch full details of the selected lead
+  useEffect(() => {
+    const fetchLeadDetail = async () => {
+      if (!leadId) return;
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/prospectos/${leadId}`);
+        if (!res.ok) throw new Error('Error al cargar detalle');
+        const data = await res.json();
+        
+        setLead(data);
+        
+        // Populate form
+        setForm({
+          nombre: data.nombre || '',
+          estilo: data.estilo || '',
+          giro_id: data.giro_id || '', // Populate FK
+          prioridad: data.prioridad || 'baja',
+          estatus: data.estatus || 'nuevo',
+          owner: data.owner || '',
+          miembro_id: data.miembro_id || '', // Populate FK
+          contacto_nombre: data.contacto_nombre || '',
+          contacto_puesto: data.contacto_puesto || '',
+          sitio_web: data.sitio_web || '',
+          correo: parseStringArray(data.correo).join(', '),
+          telefono: parseStringArray(data.telefono).join(', '),
+          whatsapp: parseStringArray(data.whatsapp).join(', '),
+          direccion1: data.direccion1 || '',
+          ciudad: data.ciudad || '',
+          estado: data.estado || '',
+          pais: data.pais || '',
+          notas: data.notas || '',
+          ficha_prospeccion: data.ficha_prospeccion || '',
+          canal_preferido: data.canal_preferido || 'whatsapp'
+        });
+      } catch (err) {
+        console.error(err);
+        alert('Error al conectar con la base de datos de producción.');
+        onClose();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLeadDetail();
+  }, [leadId]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleRecalculateScore = () => {
+    // Generate virtual object representing current state to score it
+    const virtualLead = {
+      ...lead,
+      nombre: form.nombre,
+      sitio_web: form.sitio_web,
+      correo: form.correo,
+      telefono: form.telefono,
+      whatsapp: form.whatsapp,
+      contacto_nombre: form.contacto_nombre,
+      prioridad: form.prioridad,
+      notas: form.notas,
+      rrss: lead ? lead.rrss : '{}'
+    };
+
+    const newScore = calculateAILeadScore(virtualLead);
+    setLead(prev => ({ ...prev, lead_score: newScore }));
+  };
+
+  // Run the AI Commercial strategy generator and update ficha
+  const handleGenerateStrategy = () => {
+    if (!lead) return;
+    
+    const virtualLead = {
+      ...lead,
+      nombre: form.nombre,
+      estilo: form.estilo,
+      ciudad: form.ciudad,
+      pais: form.pais,
+      canal_preferido: form.canal_preferido
+    };
+
+    const strategy = generateAISalesStrategy(virtualLead);
+    
+    // Format into elegant text
+    const formattedText = `===========================================
+PROPUESTA COMERCIAL - TEMIKIA IA AGENCY
+===========================================
+Giro Comercial Categorizado: ${strategy.giroCategorizado}
+Fecha de Análisis: ${formatDate(strategy.fechaGeneracion)}
+
+ELÉVATOR PITCH SUGERIDO:
+"${strategy.pitchElevator}"
+
+ESTRATEGIAS CLAVE DE AUTOMATIZACIÓN DE VENTAS:
+${strategy.estrategiasIA.map((s, i) => `${i + 1}. ${s}`).join('\n')}
+
+TECNOLOGÍAS / INTEGRACIONES RECOMENDADAS:
+${strategy.integracionesRecomendadas.map(t => `- ${t}`).join('\n')}
+
+ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
+
+    setForm(prev => ({ ...prev, ficha_prospeccion: formattedText }));
+    
+    // Automatically trigger visual alert
+    confetti({
+      particleCount: 50,
+      angle: 60,
+      spread: 55,
+      origin: { x: 0.2, y: 0.8 },
+      colors: ['#06B6D4', '#2563EB']
+    });
+  };
+
+  // Save changes via PUT request to Express
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      setSaveStatus('idle');
+      
+      const payload = {
+        ...form,
+        lead_score: lead.lead_score // Include the computed AI score
+      };
+
+      const res = await fetch(`/api/prospectos/${leadId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) throw new Error('Error al guardar datos');
+      
+      onSaveSuccess();
+      setSaveStatus('success');
+      
+      // Auto-revert back to idle after 2.5 seconds
+      setTimeout(() => {
+        setSaveStatus('idle');
+      }, 2500);
+    } catch (err) {
+      console.error(err);
+      setSaveStatus('error');
+      setTimeout(() => {
+        setSaveStatus('idle');
+      }, 2500);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Delete lead from PG
+  const handleDelete = async () => {
+    const confirm = window.confirm(`¿Está completamente seguro de eliminar el prospecto "${form.nombre}"? Esta operación es irreversible en la base de datos.`);
+    if (!confirm) return;
+
+    try {
+      setIsDeleting(true);
+      const res = await fetch(`/api/prospectos/${leadId}`, {
+        method: 'DELETE'
+      });
+
+      if (!res.ok) throw new Error('Error al eliminar');
+
+      onSaveSuccess();
+      alert('El registro ha sido eliminado exitosamente de la base de datos.');
+      onClose();
+    } catch (err) {
+      console.error(err);
+      alert('Error al eliminar el registro de la base de datos.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  if (loading || !lead) {
+    return (
+      <div className="drawer-backdrop" onClick={onClose}>
+        <div className="drawer" onClick={(e) => e.stopPropagation()} style={{ justifyContent: 'center', alignItems: 'center' }}>
+          <RefreshCw size={32} className="header-status-dot" style={{ animation: 'pulse-glow 1.5s infinite', color: 'var(--color-primary)' }} />
+          <p style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>Cargando ficha comercial de la base de datos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Parse schedules & social networks
+  const rrss = parseJsonbField(lead.rrss);
+  const horarios = parseJsonbField(lead.horario);
+  const hasCoordinates = lead.lat && lead.lon;
+
+  // Check if Ficha de Prospección has a Drive / external link
+  const getDriveUrl = () => {
+    if (!form.ficha_prospeccion) return null;
+    const trimmed = form.ficha_prospeccion.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    // Match URL inside text
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const match = trimmed.match(urlRegex);
+    if (match && match.length > 0) {
+      return match[0];
+    }
+    return null;
+  };
+  const driveUrl = getDriveUrl();
+
+  // Extract quick action endpoints
+  const emails = parseStringArray(form.correo);
+  const firstEmail = emails.length > 0 ? emails[0] : '';
+
+  const phonesList = parseStringArray(form.telefono);
+  const firstPhone = phonesList.length > 0 ? phonesList[0] : '';
+  const cleanPhone = firstPhone ? firstPhone.replace(/[^\d+]/g, '') : '';
+
+  const waList = parseStringArray(form.whatsapp);
+  const firstWa = waList.length > 0 ? waList[0] : '';
+  const cleanWa = firstWa ? firstWa.replace(/[^\d+]/g, '') : '';
+
+  // Google Maps embed resolver using place_url (extracts query parameter to bypass X-Frame blocking)
+  const getEmbedMapUrl = () => {
+    if (lead.place_url) {
+      try {
+        const urlObj = new URL(lead.place_url);
+        const queryVal = urlObj.searchParams.get('query');
+        if (queryVal) {
+          return `https://maps.google.com/maps?q=${encodeURIComponent(queryVal)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+        }
+      } catch (e) {
+        // Fallback below
+      }
+    }
+    if (lead.nombre) {
+      return `https://maps.google.com/maps?q=${encodeURIComponent(lead.nombre)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+    }
+    if (lead.lat && lead.lon) {
+      return `https://maps.google.com/maps?q=${lead.lat},${lead.lon}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+    }
+    return '';
+  };
+
+  const mapEmbedUrl = getEmbedMapUrl();
+
+  return (
+    <div className="drawer-backdrop" onClick={onClose}>
+      <div className="drawer" onClick={(e) => e.stopPropagation()}>
+        {/* Drawer Header */}
+        <div className="drawer-header">
+          <div className="drawer-title-group">
+            <h2 className="drawer-title">{form.nombre || 'Detalle del Prospecto'}</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span className="card-tag-style">{lead.giro_nombre || form.estilo || 'Sin Categoría'}</span>
+              {lead.negocios_gmaps_id && (
+                <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 500 }} title={`ID Maps: ${lead.negocios_gmaps_id}`}>
+                  GMaps ID: <strong style={{ color: 'var(--color-primary)' }}>{lead.negocios_gmaps_id}</strong>
+                </span>
+              )}
+            </div>
+          </div>
+          <button className="modal-close-btn" onClick={onClose}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Drawer Body */}
+        <div className="drawer-body">
+          {/* AI Metrics quick summary bar */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            backgroundColor: 'rgba(6, 182, 212, 0.05)', 
+            padding: '16px', 
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid rgba(6, 182, 212, 0.12)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Sparkles size={20} style={{ color: 'var(--color-ai)' }} />
+              <div>
+                <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>Evaluación TemikIA</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Puntuación dinámica del lead</p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-ai)' }}>{lead.lead_score}</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>/100</span>
+              </div>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={handleRecalculateScore}
+                style={{ padding: '4px 10px', fontSize: '11px' }}
+              >
+                Recalcular Score
+              </button>
+            </div>
+          </div>
+
+          {/* 1. INFORMACIÓN GENERAL */}
+          <div className="drawer-section">
+            <span className="drawer-section-title">Información de Ventas</span>
+            
+            <div className="properties-grid">
+              <div className="property-item">
+                <label className="property-label">Estatus del Pipeline</label>
+                <select name="estatus" value={form.estatus} onChange={handleChange} className="property-input">
+                  <option value="nuevo">Nuevo Lead</option>
+                  <option value="contactado">Contactado</option>
+                  <option value="calificado">Calificado</option>
+                  <option value="propuesta">Propuesta</option>
+                  <option value="ganado">Ganado</option>
+                  <option value="perdido">Perdido</option>
+                </select>
+              </div>
+
+              <div className="property-item">
+                <label className="property-label">Prioridad Comercial</label>
+                <select name="prioridad" value={form.prioridad} onChange={handleChange} className="property-input">
+                  <option value="alta">Alta prioridad</option>
+                  <option value="media">Media prioridad</option>
+                  <option value="baja">Baja prioridad</option>
+                </select>
+              </div>
+
+              <div className="property-item">
+                <label className="property-label">Giro de Negocio (Base de Datos)</label>
+                <select name="giro_id" value={form.giro_id} onChange={handleChange} className="property-input">
+                  <option value="">Seleccione un Giro...</option>
+                  {girosList.map(g => (
+                    <option key={g.id} value={g.id}>{g.giro}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="property-item">
+                <label className="property-label">Ejecutivo Asignado (Owner)</label>
+                <select 
+                  name="miembro_id" 
+                  value={form.miembro_id} 
+                  onChange={handleChange} 
+                  className="property-input"
+                >
+                  <option value="">Seleccione un Ejecutivo...</option>
+                  {miembros.map(m => (
+                    <option key={m.miembro_id} value={m.miembro_id}>{m.nombre_completo}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="property-item">
+                <label className="property-label">Canal Preferido</label>
+                <select name="canal_preferido" value={form.canal_preferido} onChange={handleChange} className="property-input">
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="correo">Correo Electrónico</option>
+                  <option value="telefono">Llamada Telefónica</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. DATOS DE CONTACTO */}
+          <div className="drawer-section">
+            <span className="drawer-section-title">Datos de Contacto</span>
+            
+            <div className="properties-grid">
+              <div className="property-item">
+                <label className="property-label">Nombre del Contacto</label>
+                <input type="text" name="contacto_nombre" value={form.contacto_nombre} onChange={handleChange} className="property-input" />
+              </div>
+
+              <div className="property-item">
+                <label className="property-label">Puesto del Contacto</label>
+                <input type="text" name="contacto_puesto" value={form.contacto_puesto} onChange={handleChange} className="property-input" />
+              </div>
+            </div>
+
+            <div className="property-item" style={{ marginTop: '8px' }}>
+              <label className="property-label">Correos Electrónicos (Separados por coma)</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input type="text" name="correo" value={form.correo} onChange={handleChange} className="property-input" style={{ flex: 1 }} />
+                {firstEmail && (
+                  <a 
+                    href={`mailto:${firstEmail}`} 
+                    className="btn btn-secondary" 
+                    style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
+                    title="Mandar Correo"
+                  >
+                    <Mail size={16} style={{ color: 'var(--color-ai)' }} />
+                  </a>
+                )}
+              </div>
+            </div>
+
+            <div className="properties-grid" style={{ marginTop: '8px' }}>
+              <div className="property-item">
+                <label className="property-label">Teléfonos (Separados por coma)</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input type="text" name="telefono" value={form.telefono} onChange={handleChange} className="property-input" style={{ flex: 1 }} />
+                  {cleanPhone && (
+                    <a 
+                      href={`tel:${cleanPhone}`} 
+                      className="btn btn-secondary" 
+                      style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
+                      title="Llamar Teléfono"
+                    >
+                      <Phone size={16} style={{ color: 'var(--color-primary)' }} />
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              <div className="property-item">
+                <label className="property-label">WhatsApp (Separados por coma)</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input type="text" name="whatsapp" value={form.whatsapp} onChange={handleChange} className="property-input" style={{ flex: 1 }} />
+                  {cleanWa ? (
+                    <a 
+                      href={`https://wa.me/${cleanWa}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="btn btn-secondary" 
+                      style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
+                      title="Abrir Chat WhatsApp"
+                    >
+                      <MessageSquare size={16} style={{ color: 'var(--color-success)' }} />
+                    </a>
+                  ) : cleanPhone ? (
+                    <a 
+                      href={`https://wa.me/${cleanPhone}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="btn btn-secondary" 
+                      style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
+                      title="Abrir Chat WhatsApp (Teléfono)"
+                    >
+                      <MessageSquare size={16} style={{ color: 'var(--color-success)' }} />
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            <div className="property-item" style={{ marginTop: '8px' }}>
+              <label className="property-label">Sitio Web</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input type="text" name="sitio_web" value={form.sitio_web} onChange={handleChange} className="property-input" style={{ flex: 1 }} />
+                {form.sitio_web && (
+                  <a href={form.sitio_web.startsWith('http') ? form.sitio_web : `http://${form.sitio_web}`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ padding: '8px' }}>
+                    <ExternalLink size={16} />
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* 3. DIRECCIÓN Y MAPA */}
+          <div className="drawer-section">
+            <span className="drawer-section-title">Ubicación Geográfica</span>
+
+            <div className="property-item">
+              <label className="property-label">Dirección 1</label>
+              <input type="text" name="direccion1" value={form.direccion1} onChange={handleChange} className="property-input" />
+            </div>
+
+            <div className="properties-grid" style={{ marginTop: '8px' }}>
+              <div className="property-item">
+                <label className="property-label">Ciudad</label>
+                <input type="text" name="ciudad" value={form.ciudad} onChange={handleChange} className="property-input" />
+              </div>
+
+              <div className="property-item">
+                <label className="property-label">Estado</label>
+                <input type="text" name="estado" value={form.estado} onChange={handleChange} className="property-input" />
+              </div>
+
+              <div className="property-item">
+                <label className="property-label">País</label>
+                <input type="text" name="pais" value={form.pais} onChange={handleChange} className="property-input" />
+              </div>
+
+
+            </div>
+
+            {/* Google Maps zero-key iframe embed (supports place_url resolving) */}
+            {mapEmbedUrl && (
+              <div style={{ marginTop: '12px' }}>
+                <label className="property-label" style={{ marginBottom: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Compass size={13} style={{ color: 'var(--color-primary)' }} />
+                    <span>Ubicación Satelital Google Maps</span>
+                  </span>
+                  {lead.place_url && (
+                    <a 
+                      href={lead.place_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      style={{ fontSize: '11px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '3px', textDecoration: 'none' }}
+                      title="Abrir Google Maps en pestaña nueva"
+                    >
+                      <span>Abrir Google Maps</span>
+                      <ExternalLink size={10} />
+                    </a>
+                  )}
+                </label>
+                <div className="map-iframe-container">
+                  <iframe 
+                    width="100%" 
+                    height="100%" 
+                    frameBorder="0" 
+                    scrolling="no" 
+                    marginHeight="0" 
+                    marginWidth="0" 
+                    src={mapEmbedUrl}
+                  ></iframe>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 4. REDES SOCIALES */}
+          {Object.keys(rrss).length > 0 && (
+            <div className="drawer-section">
+              <span className="drawer-section-title">Canales Sociales Encontrados</span>
+              <div className="social-links-row">
+                {Object.keys(rrss).map(platform => {
+                  const url = rrss[platform];
+                  if (!url || url.trim() === '') return null;
+                  return (
+                    <a 
+                      key={platform} 
+                      href={url} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="social-chip"
+                    >
+                      <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{platform}</span>
+                      <ExternalLink size={12} />
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 5. HORARIOS DE ATENCIÓN */}
+          {horarios && horarios.list && horarios.list.length > 0 && (
+            <div className="drawer-section">
+              <span className="drawer-section-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Clock size={13} />
+                <span>Horarios de Operación</span>
+              </span>
+              <div style={{ 
+                backgroundColor: 'var(--bg-main)', 
+                borderRadius: 'var(--radius-md)', 
+                padding: '12px',
+                border: '1px solid var(--border-color)',
+                fontSize: '12.5px' 
+              }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontWeight: 600, borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                  <span>Día</span>
+                  <span>Horas de Atención</span>
+                </div>
+                {horarios.list.map((h, i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', padding: '3px 0', borderBottom: i < horarios.list.length - 1 ? '1px dashed rgba(100, 116, 139, 0.1)' : 'none' }}>
+                    <span style={{ textTransform: 'capitalize', fontWeight: 500 }}>{h.day}</span>
+                    <span style={{ color: 'var(--text-secondary)' }}>{h.hours}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 6. GESTIÓN Y NOTAS INTERNAS */}
+          <div className="drawer-section">
+            <span className="drawer-section-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <MessageSquare size={13} />
+              <span>Bitácora de Notas Comerciales</span>
+            </span>
+            <textarea 
+              name="notas" 
+              value={form.notas} 
+              onChange={handleChange} 
+              className="notes-textarea"
+              placeholder="Escriba aquí los comentarios del vendedor, compromisos acordados, llamadas realizadas y seguimiento..."
+            ></textarea>
+          </div>
+
+          {/* 7. FICHA DE PROSPECCIÓN IA */}
+          <div className="drawer-section" style={{ 
+            border: '1px solid rgba(6, 182, 212, 0.2)', 
+            borderRadius: 'var(--radius-md)', 
+            padding: '16px',
+            backgroundColor: 'rgba(6, 182, 212, 0.02)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Sparkles size={16} style={{ color: 'var(--color-ai)' }} />
+                <h4 style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-main)' }}>Ficha de Prospección IA</h4>
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
+                {driveUrl && (
+                  <a 
+                    href={driveUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-secondary"
+                    style={{ 
+                      padding: '6px 12px', 
+                      fontSize: '11px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '4px',
+                      textDecoration: 'none',
+                      backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                      borderColor: 'rgba(37, 99, 235, 0.25)',
+                      color: 'var(--color-primary)'
+                    }}
+                  >
+                    <ExternalLink size={12} />
+                    <span>Abrir Enlace / Drive</span>
+                  </a>
+                )}
+                
+                <button 
+                  type="button" 
+                  className="btn btn-ai"
+                  onClick={handleGenerateStrategy}
+                  style={{ padding: '6px 12px', fontSize: '11px' }}
+                >
+                  Generar Propuesta IA
+                </button>
+              </div>
+            </div>
+            
+            <textarea 
+              name="ficha_prospeccion" 
+              value={form.ficha_prospeccion} 
+              onChange={handleChange} 
+              className="notes-textarea"
+              style={{ fontFamily: 'monospace', fontSize: '11.5px', minHeight: '180px', borderColor: 'rgba(6, 182, 212, 0.2)' }}
+              placeholder="Esta ficha detalla la estrategia de abordaje de ventas del Agente IA. De clic en 'Generar Propuesta IA' para redactar un pitch elevator y tecnologías B2B recomendadas..."
+            ></textarea>
+          </div>
+          
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span>Creado en: {formatDate(lead.created_at)}</span>
+            <span>Última modificación: {formatDate(lead.updated_at)}</span>
+          </div>
+        </div>
+
+        {/* Drawer Footer Actions */}
+        <div className="drawer-footer">
+          <button 
+            className="btn btn-danger" 
+            onClick={handleDelete}
+            disabled={isDeleting || isSaving}
+            style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Trash2 size={16} />
+            <span>{isDeleting ? 'Eliminando...' : 'Eliminar'}</span>
+          </button>
+
+          <button 
+            className="btn btn-secondary" 
+            onClick={onClose}
+            disabled={isSaving || isDeleting}
+          >
+            Cancelar
+          </button>
+
+          <button 
+            className="btn btn-primary" 
+            onClick={handleSave}
+            disabled={isSaving || isDeleting}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px',
+              transition: 'all 0.3s ease',
+              ...(saveStatus === 'success' ? {
+                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                borderColor: '#10B981',
+                color: '#FFFFFF',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+              } : saveStatus === 'error' ? {
+                background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+                borderColor: '#EF4444',
+                color: '#FFFFFF',
+                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)'
+              } : {})
+            }}
+          >
+            {isSaving ? (
+              <>
+                <RefreshCw className="animate-spin" size={16} />
+                <span>Guardando...</span>
+              </>
+            ) : saveStatus === 'success' ? (
+              <>
+                <Check size={16} />
+                <span>¡Actualizado!</span>
+              </>
+            ) : saveStatus === 'error' ? (
+              <>
+                <X size={16} />
+                <span>Error al guardar</span>
+              </>
+            ) : (
+              <>
+                <Save size={16} />
+                <span>Guardar Cambios</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default LeadDetails;
