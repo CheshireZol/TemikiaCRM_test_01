@@ -32,6 +32,7 @@ const LeadDetails = ({ leadId, onClose, onSaveSuccess }) => {
   const [girosList, setGirosList] = useState([]); // Giros Lookup state
   const [miembros, setMiembros] = useState([]); // Team Members list
   const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'success' | 'error'
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // State for custom delete confirmation modal
 
   // Editable Form states
   const [form, setForm] = useState({
@@ -240,9 +241,6 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
 
   // Delete lead from PG
   const handleDelete = async () => {
-    const confirm = window.confirm(`¿Está completamente seguro de eliminar el prospecto "${form.nombre}"? Esta operación es irreversible en la base de datos.`);
-    if (!confirm) return;
-
     try {
       setIsDeleting(true);
       const res = await fetch(`/api/prospectos/${leadId}`, {
@@ -346,26 +344,55 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
           <div className="drawer-title-group">
             <h2 className="drawer-title" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <span>{form.nombre || 'Detalle del Prospecto'}</span>
-              {lead.total_score !== undefined && lead.total_score !== null && (
-                <span 
-                  title={`Calificación GMaps: ${lead.total_score} estrellas de ${lead.reviews_count || 0} reseñas`}
-                  style={{ 
-                    fontSize: '13.5px', 
-                    color: '#eab308', 
-                    fontWeight: 700,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '3px',
-                    backgroundColor: 'rgba(234, 179, 8, 0.07)',
-                    padding: '2px 8px',
-                    borderRadius: '20px',
-                    border: '1px solid rgba(234, 179, 8, 0.25)',
-                    lineHeight: '1.2'
-                  }}
-                >
-                  ★ {lead.total_score} ({lead.reviews_count || 0})
-                </span>
-              )}
+              {lead.negocios_gmaps_id && (() => {
+                const totalScoreNum = parseFloat(lead.total_score);
+                const reviewsCountNum = parseInt(lead.reviews_count);
+                const hasReviews = !isNaN(totalScoreNum) && totalScoreNum > 0 && !isNaN(reviewsCountNum) && reviewsCountNum > 0;
+                
+                if (hasReviews) {
+                  return (
+                    <span 
+                      title={`Calificación GMaps: ${lead.total_score} estrellas de ${lead.reviews_count} reseñas`}
+                      style={{ 
+                        fontSize: '13.5px', 
+                        color: '#eab308', 
+                        fontWeight: 700,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        backgroundColor: 'rgba(234, 179, 8, 0.07)',
+                        padding: '2px 8px',
+                        borderRadius: '20px',
+                        border: '1px solid rgba(234, 179, 8, 0.25)',
+                        lineHeight: '1.2'
+                      }}
+                    >
+                      ★ {lead.total_score} ({lead.reviews_count})
+                    </span>
+                  );
+                } else {
+                  return (
+                    <span 
+                      title="Sin reseñas en Google Maps"
+                      style={{ 
+                        fontSize: '13.5px', 
+                        color: 'var(--text-muted, #94a3b8)', 
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        backgroundColor: 'rgba(148, 163, 184, 0.08)',
+                        padding: '2px 8px',
+                        borderRadius: '20px',
+                        border: '1px solid rgba(148, 163, 184, 0.25)',
+                        lineHeight: '1.2'
+                      }}
+                    >
+                      ★ 0 (0)
+                    </span>
+                  );
+                }
+              })()}
             </h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <span className="card-tag-style">{lead.giro_nombre || form.estilo || 'Sin Categoría'}</span>
@@ -887,21 +914,27 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
         {/* Drawer Footer Actions */}
         <div className="drawer-footer">
           <button 
+            type="button"
             className="btn btn-danger" 
-            onClick={handleDelete}
+            onClick={() => setShowDeleteConfirm(true)}
             disabled={isDeleting || isSaving}
-            style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{ 
+              marginRight: 'auto', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              padding: '10px',
+              borderRadius: 'var(--radius-md)',
+              width: '42px',
+              height: '42px',
+              minWidth: 'auto',
+              backgroundColor: '#EF4444',
+              borderColor: '#EF4444',
+              color: '#FFFFFF'
+            }}
+            title="Eliminar Prospecto"
           >
-            <Trash2 size={16} />
-            <span>{isDeleting ? 'Eliminando...' : 'Eliminar'}</span>
-          </button>
-
-          <button 
-            className="btn btn-secondary" 
-            onClick={onClose}
-            disabled={isSaving || isDeleting}
-          >
-            Cancelar
+            <Trash2 size={18} />
           </button>
 
           <button 
@@ -950,6 +983,101 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
           </button>
         </div>
       </div>
+      {/* MODAL DE CONFIRMACIÓN DE ELIMINACIÓN PRÉMIUM */}
+      {showDeleteConfirm && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 300,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            animation: 'fadeIn 0.2s ease'
+          }}
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <div 
+            style={{
+              backgroundColor: 'var(--bg-card, #FFFFFF)',
+              border: '1px solid var(--border-color, #e2e8f0)',
+              borderRadius: 'var(--radius-lg, 12px)',
+              padding: '28px',
+              width: '400px',
+              maxWidth: '90vw',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '16px',
+              animation: 'scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Warning Icon Badge */}
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#EF4444'
+            }}>
+              <Trash2 size={24} />
+            </div>
+
+            {/* Text description */}
+            <div>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main, #0f172a)', marginBottom: '8px' }}>
+                ¿Eliminar Prospecto?
+              </h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary, #64748b)', lineHeight: '1.5', textAlign: 'center' }}>
+                ¿Está completamente seguro de eliminar el prospecto <strong>{form.nombre}</strong>? Esta acción es definitiva y se borrará permanentemente de la base de datos.
+              </p>
+            </div>
+
+            {/* Action buttons */}
+            <div style={{ display: 'flex', width: '100%', gap: '10px', marginTop: '8px' }}>
+              <button 
+                type="button"
+                className="btn btn-secondary" 
+                onClick={() => setShowDeleteConfirm(false)}
+                style={{ flex: 1, padding: '10px', fontSize: '13px' }}
+              >
+                No, Cancelar
+              </button>
+              <button 
+                type="button"
+                className="btn btn-danger" 
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  handleDelete();
+                }}
+                disabled={isDeleting}
+                style={{ 
+                  flex: 1, 
+                  padding: '10px', 
+                  fontSize: '13px', 
+                  backgroundColor: '#EF4444', 
+                  borderColor: '#EF4444', 
+                  color: '#FFFFFF' 
+                }}
+              >
+                {isDeleting ? 'Eliminando...' : 'Sí, Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

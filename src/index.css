@@ -1874,6 +1874,7 @@ body {
   .drawer {
     width: 100vw !important;
     max-width: 100vw !important;
+    height: 100dvh !important; /* Evita que la barra de direcciones móvil tape los botones */
   }
 
   .drawer-header {
@@ -1897,6 +1898,11 @@ body {
 
   .drawer-footer {
     padding: 16px 20px !important;
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 10 !important;
+    background-color: var(--bg-main) !important;
+    border-top: 1px solid var(--border-color) !important;
   }
 
   /* Modal responsive creation cards */
