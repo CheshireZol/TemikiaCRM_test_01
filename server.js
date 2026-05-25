@@ -411,10 +411,12 @@ app.get('/api/prospectos/:id', async (req, res) => {
     const { id } = req.params;
     const query = `
       SELECT p.*, COALESCE(g.giro, p.estilo, 'Sin Giro') as giro_nombre,
-             COALESCE(me.nombre_completo, p.owner, 'Sin Asignar') as owner_nombre
+             COALESCE(me.nombre_completo, p.owner, 'Sin Asignar') as owner_nombre,
+             n.total_score, n.reviews_count, n.web_search, n.peoplealsosearch
       FROM temikia_crm.prospectos_negocios p
       LEFT JOIN temikia_crm.giros_negocios g ON p.giro_id = g.id
       LEFT JOIN temikia_crm.miembros_equipo me ON p.miembro_id = me.miembro_id
+      LEFT JOIN temikia_crm.negocios_gmaps n ON p.negocios_gmaps_id = n.id
       WHERE p.id = $1
     `;
     const result = await pool.query(query, [id]);

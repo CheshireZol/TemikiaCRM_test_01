@@ -278,6 +278,13 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
   const horarios = parseJsonbField(lead.horario);
   const hasCoordinates = lead.lat && lead.lon;
 
+  // Parse Google Maps additional research fields
+  const webSearchLinks = parseStringArray(lead.web_search);
+  const peopleAlsoSearchObj = parseJsonbField(lead.peoplealsosearch);
+  const relatedSearches = peopleAlsoSearchObj && Array.isArray(peopleAlsoSearchObj.resultados)
+    ? peopleAlsoSearchObj.resultados
+    : [];
+
   // Check if Ficha de Prospección has a Drive / external link
   const getDriveUrl = () => {
     if (!form.ficha_prospeccion) return null;
@@ -337,7 +344,29 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
         {/* Drawer Header */}
         <div className="drawer-header">
           <div className="drawer-title-group">
-            <h2 className="drawer-title">{form.nombre || 'Detalle del Prospecto'}</h2>
+            <h2 className="drawer-title" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <span>{form.nombre || 'Detalle del Prospecto'}</span>
+              {lead.total_score !== undefined && lead.total_score !== null && (
+                <span 
+                  title={`Calificación GMaps: ${lead.total_score} estrellas de ${lead.reviews_count || 0} reseñas`}
+                  style={{ 
+                    fontSize: '13.5px', 
+                    color: '#eab308', 
+                    fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    backgroundColor: 'rgba(234, 179, 8, 0.07)',
+                    padding: '2px 8px',
+                    borderRadius: '20px',
+                    border: '1px solid rgba(234, 179, 8, 0.25)',
+                    lineHeight: '1.2'
+                  }}
+                >
+                  ★ {lead.total_score} ({lead.reviews_count || 0})
+                </span>
+              )}
+            </h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <span className="card-tag-style">{lead.giro_nombre || form.estilo || 'Sin Categoría'}</span>
               {lead.negocios_gmaps_id && (
@@ -630,6 +659,120 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
                     </a>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* BÚSQUEDAS WEB / ENLACES DE INTERÉS */}
+          {webSearchLinks && webSearchLinks.length > 0 && (
+            <div className="drawer-section">
+              <span className="drawer-section-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Compass size={13} style={{ color: 'var(--color-primary)' }} />
+                <span>Búsquedas Web de Interés</span>
+              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {webSearchLinks.map((url, idx) => {
+                  if (!url || url.trim() === '') return null;
+                  let domain = url;
+                  try {
+                    domain = new URL(url).hostname;
+                  } catch (e) {}
+                  return (
+                    <a
+                      key={idx}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="social-chip"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 14px',
+                        backgroundColor: 'var(--bg-main)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-md)',
+                        textDecoration: 'none',
+                        color: 'var(--text-main)',
+                        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.4)';
+                        e.currentTarget.style.backgroundColor = 'rgba(6, 182, 212, 0.04)';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border-color)';
+                        e.currentTarget.style.backgroundColor = 'var(--bg-main)';
+                        e.currentTarget.style.transform = 'none';
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden', textAlign: 'left' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-primary)' }}>
+                          {domain}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {url}
+                        </span>
+                      </div>
+                      <ExternalLink size={13} style={{ color: 'var(--text-muted)', flexShrink: 0, marginLeft: '8px' }} />
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* OTROS USUARIOS TAMBIÉN BUSCARON */}
+          {relatedSearches && relatedSearches.length > 0 && (
+            <div className="drawer-section">
+              <span className="drawer-section-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Sparkles size={13} style={{ color: 'var(--color-ai)' }} />
+                <span>Otros usuarios también buscaron</span>
+              </span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
+                {relatedSearches.map((item, idx) => (
+                  <div 
+                    key={idx}
+                    style={{
+                      backgroundColor: 'var(--bg-main)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      boxShadow: 'var(--shadow-sm)',
+                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                      textAlign: 'left'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.3)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.05)';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--border-color)';
+                      e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                      e.currentTarget.style.transform = 'none';
+                    }}
+                  >
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.title}>
+                      {item.title}
+                    </span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      {item.category || 'Búsqueda relacionada'}
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', fontSize: '11.5px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '2px', color: '#eab308', fontWeight: 700 }}>
+                        ★ {item.totalScore || item.total_score || 'N/A'}
+                      </span>
+                      <span style={{ color: 'var(--text-secondary)' }}>
+                        ({item.reviewsCount || item.reviews_count || 0} reseñas)
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
