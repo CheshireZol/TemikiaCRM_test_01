@@ -7,6 +7,9 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import nodemailer from 'nodemailer';
 import dns from 'dns';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 
 dns.setDefaultResultOrder('ipv4first');
 
@@ -23,7 +26,68 @@ const __dirname = path.dirname(__filename);
 app.set('trust proxy', 1);
 
 // Middlewares
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          "'unsafe-eval'",
+          "https://maps.googleapis.com",
+          "https://maps.gstatic.com"
+        ],
+
+        styleSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          "https://fonts.googleapis.com",
+          "https://maps.googleapis.com"
+        ],
+
+        imgSrc: [
+          "'self'",
+          "data:",
+          "blob:",
+          "https://maps.gstatic.com",
+          "https://maps.googleapis.com",
+          "https://*.googleapis.com",
+          "https://*.gstatic.com",
+          "https://*.googleusercontent.com"
+        ],
+
+        connectSrc: [
+          "'self'",
+          "https://maps.googleapis.com",
+          "https://*.googleapis.com"
+        ],
+
+        fontSrc: [
+          "'self'",
+          "data:",
+          "https://fonts.gstatic.com"
+        ],
+
+        frameSrc: [
+          "'self'",
+          "https://www.google.com",
+          "https://maps.google.com",
+          "https://www.google.com.mx"
+        ],
+
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'self'"],
+        upgradeInsecureRequests: []
+      }
+    }
+  })
+);
+
+
 
 // CORS Whitelisting based on FRONTEND_URL environment variable
 const allowedOrigins = [
