@@ -8,6 +8,15 @@
 # compilación de la interfaz React con Vite y el reinicio seguro del servidor backend.
 # ==============================================================================
 
+# ==============================================================================
+# CONFIGURACIÓN DE RUTAS
+# ==============================================================================
+# Define la ruta de tu carpeta web pública (Nginx/Apache) si deseas que el script
+# copie automáticamente los archivos compilados en 'dist/' a esa ubicación.
+# Ejemplo: "/var/www/temikiaCRM" o "/var/www/html". Déjala vacía si Nginx sirve
+# directamente desde la carpeta del proyecto en '/root/temikiaCRM/dist'.
+WWW_DIR="/var/www/temikiaCRM"
+
 # Colores de Consola ANSI para salidas elegantes
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -66,7 +75,26 @@ fi
 # 4. COMPILACIÓN DE LA INTERFAZ (FRONTEND VITE/REACT)
 echo -e "${BLUE}[4/5] Compilando interfaz frontend (React/Vite)...${NC}"
 if npm run build; then
-    echo -e "${GREEN}✔ Compilación completada con éxito. Recursos estáticos creados en 'dist/'.${NC}\n"
+    echo -e "${GREEN}✔ Compilación completada con éxito. Recursos estáticos creados en 'dist/'.${NC}"
+    
+    # Copiar archivos a la carpeta web pública si está configurada
+    if [ -n "$WWW_DIR" ]; then
+        echo -e "  - Copiando archivos compilados a la carpeta web pública: ${BOLD}${WWW_DIR}${NC}..."
+        # Crear la carpeta de destino de forma segura
+        mkdir -p "$WWW_DIR"
+        
+        # Limpiar contenido anterior de forma segura
+        rm -rf "$WWW_DIR"/*
+        
+        # Copiar los nuevos archivos compilados
+        if cp -r dist/* "$WWW_DIR"/; then
+            echo -e "${GREEN}✔ Archivos copiados correctamente a la carpeta de producción.${NC}\n"
+        else
+            echo -e "${YELLOW}ADVERTENCIA: No se pudieron copiar los archivos a ${WWW_DIR}. Verifica los permisos de escritura.${NC}\n"
+        fi
+    else
+        echo -e "\n"
+    fi
 else
     echo -e "${RED}${BOLD}CRÍTICO: Falló la compilación de Vite ('npm run build'). Despliegue cancelado.${NC}"
     exit 1
@@ -79,19 +107,19 @@ echo -e "${BLUE}[5/5] Reiniciando servicios del servidor...${NC}"
 if command -v pm2 &> /dev/null; then
     echo -e "  - PM2 detectado. Verificando procesos activos..."
     
-    # Comprobar si existe un proceso con nombre 'temikia-crm' o 'server.js'
-    PM2_PROCESS_NAME="temikia-crm"
-    
-    # Comprobamos si el proceso ya está registrado en PM2
-    if pm2 list | grep -q "$PM2_PROCESS_NAME"; then
-        echo -e "  - Reiniciando proceso existente '${BOLD}${PM2_PROCESS_NAME}${NC}'..."
-        pm2 restart "$PM2_PROCESS_NAME"
+    # Comprobamos qué proceso ya está registrado en PM2 (temikia-backend, temikia-crm o server)
+    if pm2 list | grep -q "temikia-backend"; then
+        echo -e "  - Reiniciando proceso existente '${BOLD}temikia-backend${NC}'..."
+        pm2 restart "temikia-backend"
+    elif pm2 list | grep -q "temikia-crm"; then
+        echo -e "  - Reiniciando proceso existente '${BOLD}temikia-crm${NC}'..."
+        pm2 restart "temikia-crm"
     elif pm2 list | grep -q "server"; then
         echo -e "  - Reiniciando proceso existente '${BOLD}server${NC}'..."
         pm2 restart "server"
     else
-        echo -e "  - Proceso no registrado en PM2. Iniciando proceso nuevo como '${BOLD}${PM2_PROCESS_NAME}${NC}'..."
-        pm2 start server.js --name "$PM2_PROCESS_NAME"
+        echo -e "  - Proceso no registrado en PM2. Iniciando proceso nuevo como '${BOLD}temikia-backend${NC}'..."
+        pm2 start server.js --name "temikia-backend"
     fi
     
     # Guardar la lista actual de PM2 para persistencia tras reinicios del sistema
