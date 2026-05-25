@@ -1,11 +1,12 @@
 import React from 'react';
-import { Search, Plus, Sparkles } from 'lucide-react';
+import { Search, Plus, Sparkles, Menu } from 'lucide-react';
 
 const Header = ({ 
   currentTab, 
   searchQuery, 
   setSearchQuery, 
-  onNewLeadClick 
+  onNewLeadClick,
+  setIsSidebarOpen
 }) => {
   
   const getTitle = () => {
@@ -26,6 +27,15 @@ const Header = ({
   return (
     <header className="header">
       <div className="header-left">
+        {/* Mobile Hamburger toggle */}
+        <button 
+          className="header-menu-toggle-btn"
+          onClick={() => setIsSidebarOpen(prev => !prev)}
+          title="Menú"
+        >
+          <Menu size={20} />
+        </button>
+
         <h1 style={{ 
           fontFamily: 'var(--font-title)', 
           fontSize: '20px', 
@@ -39,7 +49,7 @@ const Header = ({
 
       {/* Show search only on Kanban and List tabs */}
       {(currentTab === 'kanban' || currentTab === 'list') && (
-        <div style={{ flex: 1, maxLength: '380px', margin: '0 32px' }}>
+        <div className="header-search-container" style={{ flex: 1, maxLength: '380px', margin: '0 32px' }}>
           <div className="header-search-wrapper">
             <Search className="header-search-icon" size={16} />
             <input
@@ -58,12 +68,12 @@ const Header = ({
         <div className="header-status-ai">
           <span className="header-status-dot"></span>
           <Sparkles size={13} style={{ color: 'var(--color-ai)' }} />
-          <span>Agente IA Activo</span>
+          <span className="header-status-ai-text">Agente IA Activo</span>
         </div>
 
-        <button className="btn btn-primary" onClick={onNewLeadClick}>
+        <button className="btn btn-primary header-new-lead-btn" onClick={onNewLeadClick}>
           <Plus size={16} />
-          <span>Nuevo Lead</span>
+          <span className="header-new-lead-btn-text">Nuevo Lead</span>
         </button>
       </div>
     </header>

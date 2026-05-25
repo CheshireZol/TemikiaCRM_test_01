@@ -17,6 +17,7 @@ function App() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Check localStorage for active session
   useEffect(() => {
@@ -88,6 +89,7 @@ function App() {
           <Kanban 
             user={user}
             searchQuery={searchQuery} 
+            setSearchQuery={setSearchQuery} 
             onLeadClick={handleLeadClick} 
             triggerRefreshToggle={triggerRefreshToggle} 
           />
@@ -142,6 +144,14 @@ function App() {
 
   return (
     <div className="app-container">
+      {/* Mobile Sidebar Backdrop Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="sidebar-backdrop" 
+          onClick={() => setIsSidebarOpen(false)}
+        ></div>
+      )}
+
       {/* 1. Left Navigation Sidebar */}
       <Sidebar 
         user={user}
@@ -152,6 +162,8 @@ function App() {
         theme={theme}
         toggleTheme={toggleTheme}
         onLogout={handleLogout}
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
       />
 
       {/* 2. Main Content Area */}
@@ -162,6 +174,7 @@ function App() {
           searchQuery={searchQuery} 
           setSearchQuery={setSearchQuery} 
           onNewLeadClick={() => setShowNewLeadModal(true)}
+          setIsSidebarOpen={setIsSidebarOpen}
         />
 
         {/* Dynamic Page Body */}

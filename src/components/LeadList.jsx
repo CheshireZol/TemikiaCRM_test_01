@@ -172,6 +172,21 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Mobile-only Search Bar */}
+      <div className="mobile-search-bar">
+        <div className="header-search-wrapper" style={{ width: '100%' }}>
+          <Search className="header-search-icon" size={16} />
+          <input
+            type="text"
+            placeholder="Buscar por nombre, giro..."
+            className="header-search-input"
+            style={{ width: '100%', padding: '10px 12px 10px 38px' }}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+      </div>
+
       {/* Search & Complex Filter panel */}
       <div className="table-card" style={{ padding: '20px', border: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>

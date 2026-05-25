@@ -20,7 +20,9 @@ const Sidebar = ({
   setIsCollapsed, 
   theme, 
   toggleTheme,
-  onLogout
+  onLogout,
+  isSidebarOpen,
+  setIsSidebarOpen
 }) => {
   
   const navItems = [
@@ -40,7 +42,7 @@ const Sidebar = ({
   const initials = getInitials(user ? user.nombreCompleto : '');
 
   return (
-    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isSidebarOpen ? 'open' : ''}`}>
       <div className="sidebar-header" style={{ padding: isCollapsed ? '16px 10px' : '20px 20px', display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'flex-start', gap: '10px' }}>
         <img 
           src="/logo.png" 
@@ -65,7 +67,10 @@ const Sidebar = ({
           return (
             <div
               key={item.id}
-              onClick={() => setCurrentTab(item.id)}
+              onClick={() => {
+                setCurrentTab(item.id);
+                if (setIsSidebarOpen) setIsSidebarOpen(false);
+              }}
               className={`sidebar-link ${currentTab === item.id ? 'active' : ''}`}
               title={isCollapsed ? item.label : undefined}
             >
@@ -79,7 +84,10 @@ const Sidebar = ({
       <div className="sidebar-footer">
         <div 
           className="sidebar-user" 
-          onClick={() => setCurrentTab('profile')}
+          onClick={() => {
+            setCurrentTab('profile');
+            if (setIsSidebarOpen) setIsSidebarOpen(false);
+          }}
           style={{ 
             cursor: 'pointer', 
             transition: 'opacity var(--transition-fast)' 

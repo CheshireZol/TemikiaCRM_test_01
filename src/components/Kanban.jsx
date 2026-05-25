@@ -7,7 +7,8 @@ import {
   UserCheck,
   AlertCircle,
   HelpCircle,
-  RefreshCw
+  RefreshCw,
+  Search
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { parseStringArray } from '../utils.js';
@@ -22,7 +23,7 @@ const STAGES = [
   { id: 'perdido', label: 'leads perdidos', color: '#EF4444' }
 ];
 
-const Kanban = ({ user, searchQuery, onLeadClick, triggerRefreshToggle }) => {
+const Kanban = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefreshToggle }) => {
   const [leads, setLeads] = useState([]);
   const [filters, setFilters] = useState({
     pais: '',
@@ -214,6 +215,21 @@ const Kanban = ({ user, searchQuery, onLeadClick, triggerRefreshToggle }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Mobile-only Search Bar */}
+      <div className="mobile-search-bar">
+        <div className="header-search-wrapper" style={{ width: '100%' }}>
+          <Search className="header-search-icon" size={16} />
+          <input
+            type="text"
+            placeholder="Buscar por nombre, giro..."
+            className="header-search-input"
+            style={{ width: '100%', padding: '10px 12px 10px 38px' }}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+      </div>
+
       {/* Filtering Toolbar */}
       <div className="kanban-controls">
         <div className="kanban-filters">
