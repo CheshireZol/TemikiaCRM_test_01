@@ -846,7 +846,7 @@ const Profile = ({ user, onUserUpdate, onLogout }) => {
             </div>
 
             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '3px', backgroundColor: 'rgba(6, 182, 212, 0.04)', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}>
-              <span style={{ fontWeight: 600, color: 'var(--color-ai)' }}>Directriz de Seguridad TemikIA:</span>
+              <span style={{ fontWeight: 600, color: 'var(--color-ai)' }}>Directriz de Seguridad Temikia:</span>
               <span>• La contraseña debe constar de al menos 8 caracteres.</span>
               <span>• Debe contener letras mayúsculas, minúsculas, números y símbolos especiales.</span>
             </div>

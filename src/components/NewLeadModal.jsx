@@ -103,7 +103,7 @@ const NewLeadModal = ({ onClose, onSaveSuccess }) => {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: '640px' }}>
+      <form className="modal" onSubmit={handleSubmit} onClick={(e) => e.stopPropagation()} style={{ width: '640px' }}>
         {/* Modal Header */}
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -115,9 +115,7 @@ const NewLeadModal = ({ onClose, onSaveSuccess }) => {
           </button>
         </div>
 
-        {/* Modal Form */}
-        <form onSubmit={handleSubmit}>
-          <div className="modal-body">
+        <div className="modal-body">
             {/* 1. GENERAL INFO */}
             <div className="property-item">
               <label className="property-label" style={{ fontWeight: 600 }}>Nombre Comercial del Negocio *</label>
@@ -281,7 +279,6 @@ const NewLeadModal = ({ onClose, onSaveSuccess }) => {
           </div>
         </form>
       </div>
-    </div>
   );
 };
 

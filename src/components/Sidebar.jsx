@@ -46,7 +46,7 @@ const Sidebar = ({
       <div className="sidebar-header" style={{ padding: isCollapsed ? '16px 10px' : '20px 20px', display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'flex-start', gap: '10px' }}>
         <img 
           src="/logo.png" 
-          alt="TemikIA Logo" 
+          alt="Temikia Logo" 
           style={{ 
             width: '40px', 
             height: '40px', 
@@ -56,7 +56,7 @@ const Sidebar = ({
         />
         {!isCollapsed && (
           <span className="sidebar-brand-name" style={{ fontSize: '17px', color: 'var(--text-white)' }}>
-            TemikIA
+            Temikia
           </span>
         )}
       </div>
@@ -110,7 +110,7 @@ const Sidebar = ({
           {!isCollapsed && (
             <div className="sidebar-username-group" style={{ maxWidth: '140px', overflow: 'hidden' }}>
               <p className="sidebar-username" style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                {user ? user.nombreCompleto : 'TemikIA Agency'}
+                {user ? user.nombreCompleto : 'Temikia Agency'}
               </p>
               <p style={{ fontSize: '10px', color: '#64748B', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                 {user && user.cargo ? user.cargo : 'Sales Executive'}

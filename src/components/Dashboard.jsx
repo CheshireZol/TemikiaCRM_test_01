@@ -47,26 +47,12 @@ const Dashboard = ({ user, onLeadClick }) => {
   const [filterOptions, setFilterOptions] = useState({
     paises: [],
     giros: [],
-    owners: []
+    miembros: [],
+    prioridades: []
   });
 
-  // 1. Fetch dynamic filters
+  // 1. Fetch static team members once
   useEffect(() => {
-    const fetchFilters = async () => {
-      try {
-        const res = await fetch('/api/filtros');
-        if (res.ok) {
-          const data = await res.json();
-          setFilterOptions({
-            paises: data.paises,
-            giros: data.giros,
-            owners: data.owners
-          });
-        }
-      } catch (err) {
-        console.error('Error fetching dashboard filters:', err);
-      }
-    };
     const fetchMiembros = async () => {
       try {
         const res = await fetch('/api/miembros');
@@ -78,9 +64,40 @@ const Dashboard = ({ user, onLeadClick }) => {
         console.error('Error fetching dashboard team members:', err);
       }
     };
-    fetchFilters();
     fetchMiembros();
   }, []);
+
+  // 1.5 Fetch distinct dynamic filters in real time (Faceted Search)
+  useEffect(() => {
+    const fetchFilters = async () => {
+      try {
+        const params = new URLSearchParams();
+        Object.keys(filters).forEach(key => {
+          if (filters[key]) {
+            params.append(key, filters[key]);
+          }
+        });
+
+        if (asignadoAMi && user && user.miembroId) {
+          params.append('miembro_id', user.miembroId);
+        }
+
+        const res = await fetch(`/api/filtros?${params.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          setFilterOptions({
+            paises: data.paises || [],
+            giros: data.giros || [],
+            miembros: data.miembros || [],
+            prioridades: data.prioridades || []
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching dashboard dynamic filters:', err);
+      }
+    };
+    fetchFilters();
+  }, [filters, asignadoAMi]);
 
   // 2. Fetch KPIs using refinement parameters
   const fetchKPIs = async () => {
@@ -201,7 +218,9 @@ const Dashboard = ({ user, onLeadClick }) => {
               disabled={asignadoAMi}
             >
               <option value="">Todos los Asesores</option>
-              {miembros.map(m => <option key={m.miembro_id} value={m.miembro_id}>{m.nombre_completo}</option>)}
+              {filterOptions.miembros.map(m => (
+                <option key={m.miembro_id} value={m.miembro_id}>{m.nombre_completo}</option>
+              ))}
             </select>
 
             <label style={{ 
@@ -223,7 +242,18 @@ const Dashboard = ({ user, onLeadClick }) => {
               <input 
                 type="checkbox" 
                 checked={asignadoAMi} 
-                onChange={(e) => setAsignadoAMi(e.target.checked)}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setAsignadoAMi(checked);
+                  if (checked) {
+                    setFilters({
+                      pais: '',
+                      giro: '',
+                      owner: '',
+                      miembro_id: ''
+                    });
+                  }
+                }}
                 style={{ width: '13px', height: '13px', accentColor: 'var(--color-primary)' }}
               />
               <span style={{ fontWeight: asignadoAMi ? 700 : 500, color: asignadoAMi ? 'var(--color-primary)' : 'var(--text-secondary)' }}>Asignado a mí</span>

@@ -13,7 +13,8 @@ import {
   Clock,
   Compass,
   RefreshCw,
-  Check
+  Check,
+  Printer
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { 
@@ -21,7 +22,8 @@ import {
   parseJsonbField, 
   formatDate,
   calculateAILeadScore,
-  generateAISalesStrategy
+  generateAISalesStrategy,
+  getSuggestedProducts
 } from '../utils.js';
 
 const LeadDetails = ({ leadId, onClose, onSaveSuccess }) => {
@@ -167,10 +169,17 @@ const LeadDetails = ({ leadId, onClose, onSaveSuccess }) => {
       estilo: form.estilo,
       ciudad: form.ciudad,
       pais: form.pais,
-      canal_preferido: form.canal_preferido
+      canal_preferido: form.canal_preferido,
+      sitio_web: form.sitio_web,
+      correo: form.correo,
+      telefono: form.telefono,
+      whatsapp: form.whatsapp,
+      contacto_nombre: form.contacto_nombre,
+      notas: form.notas
     };
 
     const strategy = generateAISalesStrategy(virtualLead);
+    if (!strategy) return;
     
     // Format into elegant text
     const formattedText = `===========================================
@@ -178,6 +187,9 @@ PROPUESTA COMERCIAL - TEMIKIA IA AGENCY
 ===========================================
 Giro Comercial Categorizado: ${strategy.giroCategorizado}
 Fecha de Análisis: ${formatDate(strategy.fechaGeneracion)}
+
+ANÁLISIS DE RADIOGRAFÍA INICIAL (AUDITORÍA AUTOMÁTICA):
+${strategy.auditoriaInicial.map((line, idx) => `${idx + 1}. ${line}`).join('\n\n')}
 
 ELÉVATOR PITCH SUGERIDO:
 "${strategy.pitchElevator}"
@@ -258,6 +270,392 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  // Print PDF business profile ("Ficha Técnica / Radiografía del Negocio") using native browser print
+  const handlePrintFicha = () => {
+    if (!lead) return;
+    
+    const suggestedProducts = getSuggestedProducts(lead, form);
+    
+    // Format dates to friendly Spanish format
+    const fechaCreacion = formatDate(lead.created_at);
+    const fechaActualizacion = formatDate(lead.updated_at);
+    const fechaImpresion = new Date().toLocaleDateString('es-ES', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    // Extract emails and phones from arrays
+    const emailsList = parseStringArray(form.correo).join(', ') || 'No provisto';
+    const phonesList = parseStringArray(form.telefono).join(', ') || 'No provisto';
+    const whatsappList = parseStringArray(form.whatsapp).join(', ') || 'No provisto';
+
+    // Format Social Networks (with full URLs)
+    const parsedRrss = parseJsonbField(lead.rrss);
+    const socialNetworksHtml = Object.keys(parsedRrss)
+      .filter(key => parsedRrss[key] && parsedRrss[key].trim() !== '')
+      .map(key => {
+        const url = parsedRrss[key].trim();
+        const label = key.charAt(0).toUpperCase() + key.slice(1);
+        return `• <a href="${url}" target="_blank" style="color:#0ea5e9; text-decoration:underline; word-break:break-all;"><strong>${label}</strong>: ${url}</a>`;
+      })
+      .join('<br/>') || 'Ninguna identificada';
+
+    // Format Web Search references
+    const webSearchList = parseStringArray(lead.web_search);
+    const webSearchHtml = webSearchList.length > 0
+      ? webSearchList.map(url => {
+          try {
+            const domain = new URL(url).hostname;
+            return `• <a href="${url}" target="_blank" style="color:#0ea5e9; text-decoration:underline;">${domain}</a><span class="text-slate-400"> (${url})</span>`;
+          } catch(e) {
+            return `• ${url}`;
+          }
+        }).join('<br/>')
+      : 'Ninguna búsqueda de referencia';
+
+    // Format Competitors / Similar Searches
+    const parsedPeopleAlsoSearch = parseJsonbField(lead.peoplealsosearch);
+    const relatedResults = parsedPeopleAlsoSearch && Array.isArray(parsedPeopleAlsoSearch.resultados)
+      ? parsedPeopleAlsoSearch.resultados
+      : [];
+    
+    const similaresHtml = relatedResults.length > 0
+      ? relatedResults.map(item => `• <strong>${item.title}</strong> - ${item.category || 'Similar'} <span class="text-yellow-600 font-bold">★ ${item.totalScore || item.total_score || '0'}</span> (${item.reviewsCount || item.reviews_count || 0} reseñas)`).join('<br/>')
+      : 'Ninguno catalogado en el sector';
+
+    // Premium Canva-styled HTML template matching html-radiografia_negocio.html
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Temikia - Ficha Técnica - ${form.nombre}</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"><\/script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            temikia: {
+              brand: '#00f2fe',
+              darkBlue: '#0d1e3d',
+              bgGray: '#e2e8f0',
+              cardGray: '#f8fafc',
+              textDark: '#0f172a',
+            }
+          }
+        }
+      }
+    }
+  <\/script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f1f5f9;
+    }
+
+    /* Optimización de impresión */
+    @media print {
+      @page {
+        size: letter;
+        margin: 0.4cm 0.4cm;
+      }
+      body {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        font-size: 9.5pt !important;
+        line-height: 1.15 !important;
+      }
+      .print-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .print-gap {
+        gap: 0.4rem !important;
+      }
+      .print-card-padding {
+        padding: 0.6rem !important;
+      }
+      .print-lead-header {
+        margin-bottom: 0.5rem !important;
+        padding-bottom: 0.5rem !important;
+      }
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen">
+  <main class="max-w-5xl mx-auto p-2 sm:p-4 print-container">
+    
+    <!-- FICHA UNIFICADA (Estilo Canva de 1 página) -->
+    <article class="bg-slate-200 border border-slate-300 rounded-xl shadow-md p-3 sm:p-5 text-slate-800 print-gap flex flex-col gap-3.5">
+      
+      <!-- CABECERA -->
+      <div class="border-b border-slate-300 pb-2 flex flex-row items-start justify-between gap-1 print-lead-header">
+        <div>
+          <span class="text-[9px] uppercase tracking-widest font-extrabold text-cyan-600">FICHA TÉCNICA DE PROSPECCIÓN</span>
+          <h1 class="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight leading-tight mt-0.5">${form.nombre}</h1>
+          
+          <div class="flex items-center gap-1.5 mt-0.5 text-[11px] text-slate-600">
+            <span class="font-bold uppercase text-slate-800">${lead.giro_nombre || form.estilo || 'Sin Categoría'}</span>
+            <span>•</span>
+            <span class="font-mono text-[10px]">GMaps ID: ${lead.negocios_gmaps_id || 'No Enlazado'}</span>
+            <span>•</span>
+            <span class="flex items-center gap-0.5 text-yellow-600 font-semibold text-[10px]">
+              ★ <span class="text-slate-700">${lead.total_score ? lead.total_score + ' (' + (lead.reviews_count || 0) + ')' : '0 (0)'}</span>
+            </span>
+          </div>
+        </div>
+        
+        <div class="text-right">
+          <span class="text-base font-black tracking-tight text-slate-900">Temikia</span>
+          <p class="text-[9px] text-slate-500">Impreso el: <span class="font-medium">${fechaImpresion}</span></p>
+        </div>
+      </div>
+
+      <!-- KPIS PRINCIPALES -->
+      <div class="grid grid-cols-3 gap-2 border border-slate-300 rounded-lg p-2 bg-slate-50">
+        <div class="text-center border-r border-slate-300">
+          <span class="text-[8px] font-bold text-slate-500 uppercase block tracking-wider">SCORE TEMIKIA</span>
+          <div class="mt-0.5">
+            <span class="text-lg font-black text-slate-900">${lead.lead_score || '0'}</span>
+            <span class="text-[10px] text-slate-400 font-bold">/100</span>
+          </div>
+        </div>
+        <div class="text-center border-r border-slate-300">
+          <span class="text-[8px] font-bold text-slate-500 uppercase block tracking-wider">ESTATUS PIPELINE</span>
+          <span class="text-[10px] font-extrabold uppercase bg-blue-100 text-blue-800 border border-blue-200 px-2 py-0.5 rounded inline-block mt-0.5">${(form.estatus || 'nuevo').toUpperCase()}</span>
+        </div>
+        <div class="text-center">
+          <span class="text-[8px] font-bold text-slate-500 uppercase block tracking-wider">PRIORIDAD COMERCIAL</span>
+          <span class="text-[10px] font-extrabold uppercase bg-gray-100 text-slate-700 border border-slate-300 px-2 py-0.5 rounded inline-block mt-0.5">${(form.prioridad || 'baja').toUpperCase()} PRIORIDAD</span>
+        </div>
+      </div>
+
+      <!-- GRID DE DOS COLUMNAS -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 print-gap">
+        
+        <!-- COLUMNA IZQUIERDA -->
+        <div class="flex flex-col gap-3.5 print-gap">
+          
+          <!-- RADIOGRAFÍA -->
+          <div class="bg-slate-50 border-t-4 border-cyan-400 rounded-lg shadow-sm overflow-hidden print-card-padding p-3 flex flex-col gap-2">
+            <h3 class="text-[10px] font-extrabold text-slate-900 uppercase tracking-wider pb-1 border-b border-slate-200">
+              Radiografía Negocio
+            </h3>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Canal Preferido</label>
+                <span class="text-xs text-slate-900 font-semibold mt-0.5 block capitalize">${form.canal_preferido}</span>
+              </div>
+              <div>
+                <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Ejecutivo Asignado</label>
+                <span class="text-xs text-slate-900 font-semibold mt-0.5 block">${lead.owner_nombre || 'Sin Asignar'}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- DATOS CONTACTO -->
+          <div class="bg-slate-50 border-t-4 border-cyan-400 rounded-lg shadow-sm overflow-hidden print-card-padding p-3 flex flex-col gap-2">
+            <h3 class="text-[10px] font-extrabold text-slate-900 uppercase tracking-wider pb-1 border-b border-slate-200">
+              Datos de Contacto
+            </h3>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Nombre del Contacto</label>
+                <span class="text-xs text-slate-900 font-semibold mt-0.5 block">${form.contacto_nombre || 'No provisto'}</span>
+              </div>
+              <div>
+                <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Puesto del Contacto</label>
+                <span class="text-xs text-slate-900 font-semibold mt-0.5 block">${form.contacto_puesto || 'No provisto'}</span>
+              </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-200">
+              <div>
+                <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Correos Electrónicos</label>
+                <span class="text-[11px] text-slate-900 font-mono block break-all mt-0.5">${emailsList}</span>
+              </div>
+              <div>
+                <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Teléfonos / WhatsApp</label>
+                <span class="text-[11px] text-slate-900 font-mono block break-all mt-0.5">${phonesList} / ${whatsappList}</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- COLUMNA DERECHA -->
+        <div class="flex flex-col gap-3.5 print-gap">
+          
+          <!-- UBICACIÓN -->
+          <div class="bg-slate-50 border-t-4 border-cyan-400 rounded-lg shadow-sm overflow-hidden print-card-padding p-3 flex flex-col gap-2">
+            <h3 class="text-[10px] font-extrabold text-slate-900 uppercase tracking-wider pb-1 border-b border-slate-200">
+              Ubicación Geográfica
+            </h3>
+            <div class="text-xs space-y-2">
+              <div>
+                <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Dirección Completa</label>
+                <p class="text-xs text-slate-900 font-medium leading-tight mt-0.5">${form.direccion1 || 'No provista'}</p>
+              </div>
+              
+              <div class="grid grid-cols-3 gap-2 pt-1 border-t border-slate-200">
+                <div class="col-span-2">
+                  <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Distrito / Colonia</label>
+                  <span class="text-xs text-slate-900 mt-0.5 block">No provisto</span>
+                </div>
+                <div>
+                  <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Código Postal</label>
+                  <span class="text-xs text-slate-900 font-mono mt-0.5 block">No provisto</span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-3 gap-2 pt-1 border-t border-slate-200">
+                <div class="col-span-2">
+                  <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Ciudad / Delegación</label>
+                  <span class="text-xs text-slate-900 mt-0.5 block">${form.ciudad || 'No provista'}</span>
+                </div>
+                <div>
+                  <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Estado</label>
+                  <span class="text-xs text-slate-900 mt-0.5 block">${form.estado || 'No provisto'}</span>
+                </div>
+              </div>
+
+              <div class="pt-1 border-t border-slate-200">
+                <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Enlace Satelital de Google Maps (URL Completa)</label>
+                <a href="${lead.place_url || '#'}" target="_blank" class="text-[9px] text-cyan-700 hover:underline break-all font-mono block leading-tight mt-0.5">
+                  ${lead.place_url || 'No provisto'}
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- PRESENCIA DIGITAL -->
+          <div class="bg-slate-50 border-t-4 border-cyan-400 rounded-lg shadow-sm overflow-hidden print-card-padding p-3 flex flex-col gap-2">
+            <h3 class="text-[10px] font-extrabold text-slate-900 uppercase tracking-wider pb-1 border-b border-slate-200">
+              Presencia Digital y Redes
+            </h3>
+            <div class="text-xs space-y-2">
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Sitio Web Oficial</label>
+                  <span class="text-xs font-mono text-slate-900 break-all block mt-0.5">${form.sitio_web || 'No provisto'}</span>
+                </div>
+                <div>
+                  <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Redes Sociales</label>
+                  <div class="text-xs text-slate-900 leading-tight block mt-0.5">${socialNetworksHtml}</div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-200">
+                <div>
+                  <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Enlaces Búsqueda (Web Search)</label>
+                  <div class="text-[9.5px] text-slate-700 font-mono break-all leading-tight mt-0.5">${webSearchHtml}</div>
+                </div>
+                <div>
+                  <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Competencia y Similares</label>
+                  <div class="text-[9.5px] text-slate-700 font-sans leading-tight mt-0.5">${similaresHtml}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- OBSERVACIONES -->
+      <div class="bg-slate-50 border-t-4 border-cyan-400 rounded-lg shadow-sm overflow-hidden print-card-padding p-3 flex flex-col gap-2.5">
+        <h3 class="text-[10px] font-extrabold text-slate-900 uppercase tracking-wider pb-1 border-b border-slate-200">
+          Ficha de Prospección e Internos
+        </h3>
+        
+        <div>
+          <label class="text-[8.5px] uppercase font-bold text-slate-500 block mb-0.5">Notas / Observaciones del Lead</label>
+          <div class="text-[11px] text-slate-700 italic min-h-[45px] bg-white p-2 rounded border border-slate-200 leading-snug whitespace-pre-wrap">${form.notas || 'Sin anotaciones preliminares.'}</div>
+        </div>
+
+        <div class="grid grid-cols-4 gap-2 pt-2 border-t border-slate-200 text-[9px] text-slate-500 font-mono">
+          <div>
+            <span class="uppercase block font-bold text-slate-400">Fecha de Creación</span>
+            <span class="text-slate-700">${fechaCreacion}</span>
+          </div>
+          <div>
+            <span class="uppercase block font-bold text-slate-400">Última Actualización</span>
+            <span class="text-slate-700">${fechaActualizacion}</span>
+          </div>
+          <div>
+            <span class="uppercase block font-bold text-slate-400">Próximo Contacto At</span>
+            <span class="text-slate-700 italic">${lead.proximo_paso_at ? formatDate(lead.proximo_paso_at) : 'Null'}</span>
+          </div>
+          <div>
+            <span class="uppercase block font-bold text-slate-400">Último Contacto At</span>
+            <span class="text-slate-700 italic">${lead.ultimo_contacto_at ? formatDate(lead.ultimo_contacto_at) : 'Null'}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPORTUNIDADES DE VENTA Y PROPUESTA DE VALOR -->
+      <div class="bg-slate-50 border-t-4 border-cyan-500 rounded-lg shadow-sm overflow-hidden print-card-padding p-3 flex flex-col gap-2">
+        <h3 class="text-[10px] font-extrabold text-slate-900 uppercase tracking-wider pb-1 border-b border-slate-200">
+          Auditoría de Oportunidades y Propuesta de Valor (Temikia CRM Engine)
+        </h3>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          ${suggestedProducts.map(p => `
+            <div class="p-2 rounded border border-slate-200 bg-white flex flex-col gap-0.5">
+              <span class="text-[8px] font-bold text-cyan-600 uppercase block tracking-wide">${p.category}</span>
+              <span class="text-xs font-bold text-slate-800 block">${p.feature}</span>
+              <p class="text-[9.5px] text-slate-600 leading-tight block mt-0.5">${p.description}</p>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- PIE DE PÁGINA -->
+      <footer class="text-center text-[9px] text-slate-500 pt-1.5 mt-0.5 border-t border-slate-300">
+        <p>© 2026 Temikia.com — Auditoría Comercial Integrada con Temikia. Toda la información es confidencial.</p>
+      </footer>
+
+    </article>
+  </main>
+</body>
+</html>
+    `;
+
+    // Robust native window.print() in a new tab
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Por favor permite los pop-ups para poder imprimir la ficha técnica.');
+      return;
+    }
+
+    // Add self-printing script specifically for browser print
+    const printHtml = htmlContent.replace('</body>', `
+      <script>
+        window.onload = function() {
+          window.print();
+          setTimeout(function() { window.close(); }, 500);
+        };
+      <\/script>
+    </body>`);
+
+    printWindow.document.open();
+    printWindow.document.write(printHtml);
+    printWindow.document.close();
   };
 
   if (loading || !lead) {
@@ -423,7 +821,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Sparkles size={20} style={{ color: 'var(--color-ai)' }} />
               <div>
-                <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>Evaluación TemikIA</p>
+                <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>Evaluación Temikia</p>
                 <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Puntuación dinámica del lead</p>
               </div>
             </div>
@@ -453,11 +851,15 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
                 <label className="property-label">Estatus del Pipeline</label>
                 <select name="estatus" value={form.estatus} onChange={handleChange} className="property-input">
                   <option value="nuevo">Nuevo Lead</option>
+                  <option value="proceso_contacto">En Proceso de Contacto</option>
                   <option value="contactado">Contactado</option>
                   <option value="calificado">Calificado</option>
                   <option value="propuesta">Propuesta</option>
                   <option value="ganado">Ganado</option>
                   <option value="perdido">Perdido</option>
+                  <option value="descalificado">Descalificado / Sin Perfil</option>
+                  <option value="datos_invalidos">Datos Inválidos / Inalcanzable</option>
+                  <option value="cerrado_inexistente">Cerrado / Inexistente</option>
                 </select>
               </div>
 
@@ -471,7 +873,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
               </div>
 
               <div className="property-item">
-                <label className="property-label">Giro de Negocio (Base de Datos)</label>
+                <label className="property-label">Giro de Negocio</label>
                 <select name="giro_id" value={form.giro_id} onChange={handleChange} className="property-input">
                   <option value="">Seleccione un Giro...</option>
                   {girosList.map(g => (
@@ -481,7 +883,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
               </div>
 
               <div className="property-item">
-                <label className="property-label">Ejecutivo Asignado (Owner)</label>
+                <label className="property-label">Ejecutivo Asignado</label>
                 <select 
                   name="miembro_id" 
                   value={form.miembro_id} 
@@ -904,6 +1306,48 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
               placeholder="Esta ficha detalla la estrategia de abordaje de ventas del Agente IA. De clic en 'Generar Propuesta IA' para redactar un pitch elevator y tecnologías B2B recomendadas..."
             ></textarea>
           </div>
+
+          {/* 8. PROPUESTA DE VALOR SUGERIDA (TEMIKIA PRODUCTS) */}
+          <div className="drawer-section" style={{
+            border: '1px solid rgba(6, 182, 212, 0.25)',
+            borderRadius: 'var(--radius-md)',
+            padding: '16px',
+            backgroundColor: 'rgba(6, 182, 212, 0.03)',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
+              <Sparkles size={16} style={{ color: 'var(--color-ai)' }} />
+              <h4 style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-main)' }}>
+                Auditoría Comercial Temikia (Propuesta de Valor)
+              </h4>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+              {getSuggestedProducts(lead, form).map((p, idx) => (
+                <div key={idx} style={{
+                  padding: '12px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--bg-card, #FFFFFF)',
+                  border: '1px solid var(--border-color, #e2e8f0)',
+                  boxShadow: 'var(--shadow-sm)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                  transition: 'all 0.2s ease'
+                }}>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--color-primary, #06b6d4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {p.category}
+                  </span>
+                  <span style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-main)' }}>
+                    {p.feature}
+                  </span>
+                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4', margin: 0, marginTop: '4px' }}>
+                    {p.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
           
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <span>Creado en: {formatDate(lead.created_at)}</span>
@@ -935,6 +1379,25 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
             title="Eliminar Prospecto"
           >
             <Trash2 size={18} />
+          </button>
+
+          <button 
+            type="button"
+            className="btn btn-secondary" 
+            onClick={handlePrintFicha}
+            disabled={isSaving || isDeleting}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              backgroundColor: 'rgba(6, 182, 212, 0.08)',
+              borderColor: 'rgba(6, 182, 212, 0.25)',
+              color: 'var(--color-primary)',
+              marginRight: '8px'
+            }}
+          >
+            <Printer size={16} />
+            <span>Imprimir Ficha</span>
           </button>
 
           <button 
@@ -977,7 +1440,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
             ) : (
               <>
                 <Save size={16} />
-                <span>Guardar Cambios</span>
+                <span>Guardar</span>
               </>
             )}
           </button>

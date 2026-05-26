@@ -133,7 +133,7 @@ function App() {
         color: 'var(--text-secondary)'
       }}>
         <RefreshCw size={36} className="animate-spin" style={{ color: 'var(--color-primary)' }} />
-        <p>Cargando sesión segura TemikIA...</p>
+        <p>Cargando sesión segura Temikia...</p>
       </div>
     );
   }

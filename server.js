@@ -343,21 +343,101 @@ app.get('/api/kpis', async (req, res) => {
   }
 });
 
-// 3. GET /api/filtros - Dynamic filter values directly populated from active database contents
+// 3. GET /api/filtros - Dynamic filter values directly populated from active database contents (Faceted Search)
 app.get('/api/filtros', async (req, res) => {
   try {
-    const [paises, ciudades, giros, owners] = await Promise.all([
-      pool.query('SELECT DISTINCT pais FROM temikia_crm.prospectos_negocios WHERE pais IS NOT NULL AND pais != \'\' ORDER BY pais'),
-      pool.query('SELECT DISTINCT ciudad FROM temikia_crm.prospectos_negocios WHERE ciudad IS NOT NULL AND ciudad != \'\' ORDER BY ciudad LIMIT 100'),
-      pool.query('SELECT DISTINCT g.giro FROM temikia_crm.prospectos_negocios p JOIN temikia_crm.giros_negocios g ON p.giro_id = g.id WHERE g.giro IS NOT NULL AND g.giro != \'\' ORDER BY g.giro'),
-      pool.query('SELECT DISTINCT owner FROM temikia_crm.prospectos_negocios WHERE owner IS NOT NULL AND owner != \'\' ORDER BY owner')
+    const {
+      estatus,
+      prioridad,
+      pais,
+      ciudad,
+      giro,
+      owner,
+      miembro_id
+    } = req.query;
+
+    // Helper to generate dynamic parameterized where clauses excluding a specific key
+    const getWhereClauses = (excludeKey) => {
+      const clauses = [];
+      const values = [];
+      let valIndex = 1;
+
+      if (estatus && excludeKey !== 'estatus') {
+        clauses.push(`p.estatus = $${valIndex++}`);
+        values.push(estatus);
+      }
+      if (prioridad && excludeKey !== 'prioridad') {
+        clauses.push(`p.prioridad = $${valIndex++}`);
+        values.push(prioridad);
+      }
+      if (pais && excludeKey !== 'pais') {
+        clauses.push(`p.pais = $${valIndex++}`);
+        values.push(pais);
+      }
+      if (ciudad && excludeKey !== 'ciudad') {
+        clauses.push(`p.ciudad = $${valIndex++}`);
+        values.push(ciudad);
+      }
+      if (giro && excludeKey !== 'giro') {
+        clauses.push(`g.giro = $${valIndex++}`);
+        values.push(giro);
+      }
+      if (miembro_id && excludeKey !== 'miembro_id') {
+        clauses.push(`p.miembro_id = $${valIndex++}`);
+        values.push(miembro_id);
+      } else if (owner && excludeKey !== 'owner') {
+        clauses.push(`p.owner = $${valIndex++}`);
+        values.push(owner);
+      }
+
+      return {
+        clauseStr: clauses.length > 0 ? ' AND ' + clauses.join(' AND ') : '',
+        values
+      };
+    };
+
+    // Construct and execute filtered queries for each dropdown concurrently (6 dimensions)
+    const paisesFilter = getWhereClauses('pais');
+    const ciudadesFilter = getWhereClauses('ciudad');
+    const girosFilter = getWhereClauses('giro');
+    const miembrosFilter = getWhereClauses('miembro_id');
+    const estatusesFilter = getWhereClauses('estatus');
+    const prioridadesFilter = getWhereClauses('prioridad');
+
+    const [paises, ciudades, giros, miembros, estatuses, prioridades] = await Promise.all([
+      pool.query(
+        `SELECT DISTINCT p.pais FROM temikia_crm.prospectos_negocios p LEFT JOIN temikia_crm.giros_negocios g ON p.giro_id = g.id WHERE p.pais IS NOT NULL AND p.pais != '' ${paisesFilter.clauseStr} ORDER BY p.pais`,
+        paisesFilter.values
+      ),
+      pool.query(
+        `SELECT DISTINCT p.ciudad FROM temikia_crm.prospectos_negocios p LEFT JOIN temikia_crm.giros_negocios g ON p.giro_id = g.id WHERE p.ciudad IS NOT NULL AND p.ciudad != '' ${ciudadesFilter.clauseStr} ORDER BY p.ciudad LIMIT 100`,
+        ciudadesFilter.values
+      ),
+      pool.query(
+        `SELECT DISTINCT g.giro FROM temikia_crm.prospectos_negocios p JOIN temikia_crm.giros_negocios g ON p.giro_id = g.id WHERE g.giro IS NOT NULL AND g.giro != '' ${girosFilter.clauseStr} ORDER BY g.giro`,
+        girosFilter.values
+      ),
+      pool.query(
+        `SELECT DISTINCT m.miembro_id, m.nombre_completo FROM temikia_crm.prospectos_negocios p JOIN temikia_crm.miembros_equipo m ON p.miembro_id = m.miembro_id LEFT JOIN temikia_crm.giros_negocios g ON p.giro_id = g.id WHERE p.miembro_id IS NOT NULL ${miembrosFilter.clauseStr} ORDER BY m.nombre_completo`,
+        miembrosFilter.values
+      ),
+      pool.query(
+        `SELECT DISTINCT p.estatus FROM temikia_crm.prospectos_negocios p LEFT JOIN temikia_crm.giros_negocios g ON p.giro_id = g.id WHERE p.estatus IS NOT NULL AND p.estatus != '' ${estatusesFilter.clauseStr} ORDER BY p.estatus`,
+        estatusesFilter.values
+      ),
+      pool.query(
+        `SELECT DISTINCT p.prioridad FROM temikia_crm.prospectos_negocios p LEFT JOIN temikia_crm.giros_negocios g ON p.giro_id = g.id WHERE p.prioridad IS NOT NULL AND p.prioridad != '' ${prioridadesFilter.clauseStr} ORDER BY p.prioridad`,
+        prioridadesFilter.values
+      )
     ]);
 
     res.json({
       paises: paises.rows.map(r => r.pais),
       ciudades: ciudades.rows.map(r => r.ciudad),
       giros: giros.rows.map(r => r.giro),
-      owners: owners.rows.map(r => r.owner)
+      miembros: miembros.rows.map(r => ({ miembro_id: r.miembro_id, nombre_completo: r.nombre_completo })),
+      estatuses: estatuses.rows.map(r => r.estatus),
+      prioridades: prioridades.rows.map(r => r.prioridad)
     });
   } catch (error) {
     console.error('Error fetching filters:', error);
@@ -592,8 +672,9 @@ app.put('/api/prospectos/:id', async (req, res) => {
           ficha_prospeccion = $20,
           canal_preferido = $21,
           proximo_paso_at = $22,
+          estatus = $23,
           updated_at = NOW()
-      WHERE id = $23
+      WHERE id = $24
       RETURNING *
     `;
 
@@ -622,6 +703,7 @@ app.put('/api/prospectos/:id', async (req, res) => {
       ficha_prospeccion || null,
       canal_preferido || 'whatsapp',
       proximo_paso_at ? new Date(proximo_paso_at) : null,
+      req.body.estatus || 'nuevo',
       id
     ];
 
@@ -820,7 +902,7 @@ app.post('/api/auth/login', async (req, res) => {
         detalle: 'Intento de inicio de sesión de usuario no registrado: ' + emailLower
       });
       return res.status(404).json({ 
-        error: 'El usuario no existe en la base de datos de TemikIA.' 
+        error: 'El usuario no existe en la base de datos de Temikia.' 
       });
     }
 
@@ -943,21 +1025,21 @@ app.post('/api/auth/login', async (req, res) => {
 
     // 10. Send Email via Hostinger SMTP in background
     const mailOptions = {
-      from: `"TemikIA Portal Seguro" <${process.env.SMTP_USER || 'no-reply@temikia.com'}>`,
+      from: `"Temikia Portal Seguro" <${process.env.SMTP_USER || 'no-reply@temikia.com'}>`,
       to: user.email_login,
-      subject: `Código de Doble Factor (2FA) - TemikIA CRM`,
+      subject: `Código de Doble Factor (2FA) - Temikia CRM`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 8px;">
           <h2 style="color: #2563eb; text-align: center; margin-bottom: 20px;">Verificación de Doble Factor</h2>
           <p>Hola <strong>${user.nombre_corto || 'Colaborador'}</strong>,</p>
-          <p>Detectamos un inicio de sesión exitoso en tu cuenta del CRM de TemikIA Agency. Por seguridad, utiliza el siguiente código de verificación de un solo uso para completar tu acceso:</p>
+          <p>Detectamos un inicio de sesión exitoso en tu cuenta del CRM de Temikia Agency. Por seguridad, utiliza el siguiente código de verificación de un solo uso para completar tu acceso:</p>
           <div style="background-color: #f8fafc; padding: 18px; border-radius: 6px; text-align: center; margin: 25px 0; border: 1px dashed #cbd5e1;">
             <span style="font-size: 36px; font-weight: bold; letter-spacing: 6px; color: #0f172a;">${code2FA}</span>
           </div>
           <p style="color: #ef4444; font-size: 13px; text-align: center; font-weight: bold;">Este código es estrictamente válido por 3 minutos.</p>
           <p style="color: #64748b; font-size: 11.5px; text-align: center;">Si no solicitaste este código, te sugerimos modificar tu contraseña de inmediato desde el portal.</p>
           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-          <p style="color: #94a3b8; font-size: 10.5px; text-align: center;">TemikIA Agency S.A. de C.V.</p>
+          <p style="color: #94a3b8; font-size: 10.5px; text-align: center;">Temikia Agency S.A. de C.V.</p>
         </div>
       `
     };

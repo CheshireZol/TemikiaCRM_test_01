@@ -11,11 +11,12 @@
 # ==============================================================================
 # CONFIGURACIÓN DE RUTAS
 # ==============================================================================
-# Define la ruta de tu carpeta web pública (Nginx/Apache) si deseas que el script
-# copie automáticamente los archivos compilados en 'dist/' a esa ubicación.
-# Ejemplo: "/var/www/temikiaCRM" o "/var/www/html". Déjala vacía si Nginx sirve
-# directamente desde la carpeta del proyecto en '/root/temikiaCRM/dist'.
-WWW_DIR="/var/www/temikiaCRM"
+# En la arquitectura unificada de TemikIA, Express sirve el frontend directamente
+# desde la carpeta local 'dist/' en producción (NODE_ENV=production).
+# Deja WWW_DIR vacío ("") para que el script no intente copiar archivos y delegue
+# todo en Express (recomendado). Configura una ruta aquí solo si sirves el
+# frontend con Nginx de manera estática e independiente.
+WWW_DIR=""
 
 # Colores de Consola ANSI para salidas elegantes
 RED='\033[0;31m'

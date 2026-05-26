@@ -243,11 +243,11 @@ const Login = ({ onLoginSuccess }) => {
             <div className="login-logo-ring">
               <img 
                 src="/logo.png" 
-                alt="TemikIA Logo" 
+                alt="Temikia Logo" 
                 className="login-logo-img"
               />
             </div>
-            <h2 className="login-title">TemikIA CRM</h2>
+            <h2 className="login-title">Temikia CRM</h2>
             <p className="login-subtitle">Hub Comercial Inteligente • Portal de Acceso</p>
           </div>
 
@@ -505,7 +505,7 @@ const Login = ({ onLoginSuccess }) => {
           )}
 
           <div className="login-footer">
-            <span>© 2026 TemikIA Agency. Todos los derechos reservados.</span>
+            <span>© 2026 Temikia Agency. Todos los derechos reservados.</span>
             <span>Sistema de Seguridad de Datos del CRM.</span>
           </div>
 

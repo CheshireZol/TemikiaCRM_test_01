@@ -13,6 +13,21 @@ import {
 } from 'lucide-react';
 import { parseStringArray, formatDate } from '../utils.js';
 
+const statusLabels = {
+  nuevo: "Nuevo Lead",
+  contactado: "Contactado",
+  calificado: "Calificado (IA)",
+  propuesta: "Propuesta",
+  ganado: "Ganado",
+  perdido: "Perdido"
+};
+
+const priorityLabels = {
+  alta: "Alta",
+  media: "Media",
+  baja: "Baja"
+};
+
 const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefreshToggle }) => {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,32 +56,18 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
   const [miembros, setMiembros] = useState([]);
   const [asignadoAMi, setAsignadoAMi] = useState(false);
 
-  // Dynamic filter lists fetched from DB
+  // Dynamic filter lists fetched from DB (Faceted Search v4)
   const [filterOptions, setFilterOptions] = useState({
     paises: [],
     ciudades: [],
     giros: [],
-    owners: []
+    miembros: [],
+    estatuses: [],
+    prioridades: []
   });
 
-  // 1. Fetch distinct filters and members
+  // 1. Fetch static team members catalog once
   useEffect(() => {
-    const fetchFilters = async () => {
-      try {
-        const res = await fetch('/api/filtros');
-        if (res.ok) {
-          const data = await res.json();
-          setFilterOptions({
-            paises: data.paises,
-            ciudades: data.ciudades,
-            giros: data.giros,
-            owners: data.owners
-          });
-        }
-      } catch (err) {
-        console.error('Error fetching filters:', err);
-      }
-    };
     const fetchMiembros = async () => {
       try {
         const res = await fetch('/api/miembros');
@@ -78,9 +79,44 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
         console.error('Error fetching team members:', err);
       }
     };
-    fetchFilters();
     fetchMiembros();
   }, [triggerRefreshToggle]);
+
+  // 2. Fetch distinct dynamic filters in real time (Faceted Search)
+  useEffect(() => {
+    const fetchFilters = async () => {
+      try {
+        const params = new URLSearchParams();
+        
+        // Append all active filters as query params
+        Object.keys(filters).forEach(key => {
+          if (filters[key]) {
+            params.append(key, filters[key]);
+          }
+        });
+
+        if (asignadoAMi && user && user.miembroId) {
+          params.append('miembro_id', user.miembroId);
+        }
+
+        const res = await fetch(`/api/filtros?${params.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          setFilterOptions({
+            paises: data.paises,
+            ciudades: data.ciudades,
+            giros: data.giros,
+            miembros: data.miembros || [],
+            estatuses: data.estatuses || [],
+            prioridades: data.prioridades || []
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching dynamic filters:', err);
+      }
+    };
+    fetchFilters();
+  }, [filters, asignadoAMi, triggerRefreshToggle]);
 
   // 2. Fetch paginated prospects
   const fetchProspects = async () => {
@@ -209,12 +245,9 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
               style={{ width: '100%' }}
             >
               <option value="">Todos los Estados</option>
-              <option value="nuevo">Nuevo Lead</option>
-              <option value="contactado">Contactado</option>
-              <option value="calificado">Calificado (IA)</option>
-              <option value="propuesta">Propuesta</option>
-              <option value="ganado">Ganado</option>
-              <option value="perdido">Perdido</option>
+              {filterOptions.estatuses.map(e => (
+                <option key={e} value={e}>{statusLabels[e] || e}</option>
+              ))}
             </select>
           </div>
 
@@ -228,9 +261,9 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
               style={{ width: '100%' }}
             >
               <option value="">Cualquier Prioridad</option>
-              <option value="alta">Alta</option>
-              <option value="media">Media</option>
-              <option value="baja">Baja</option>
+              {filterOptions.prioridades.map(p => (
+                <option key={p} value={p}>{priorityLabels[p] || p}</option>
+              ))}
             </select>
           </div>
 
@@ -273,7 +306,9 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
               disabled={asignadoAMi}
             >
               <option value="">Cualquier Asesor</option>
-              {miembros.map(m => <option key={m.miembro_id} value={m.miembro_id}>{m.nombre_completo}</option>)}
+              {filterOptions.miembros.map(m => (
+                <option key={m.miembro_id} value={m.miembro_id}>{m.nombre_completo}</option>
+              ))}
             </select>
           </div>
 
@@ -300,7 +335,19 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
                 type="checkbox" 
                 checked={asignadoAMi} 
                 onChange={(e) => {
-                  setAsignadoAMi(e.target.checked);
+                  const checked = e.target.checked;
+                  setAsignadoAMi(checked);
+                  if (checked) {
+                    setFilters({
+                      pais: '',
+                      ciudad: '',
+                      giro: '',
+                      owner: '',
+                      miembro_id: '',
+                      prioridad: '',
+                      estatus: ''
+                    });
+                  }
                   setOffset(0);
                 }}
                 style={{ width: '13px', height: '13px', accentColor: 'var(--color-primary)' }}

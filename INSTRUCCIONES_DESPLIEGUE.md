@@ -1,125 +1,164 @@
-# Manual de Despliegue Automatizado - TemikIA CRM
+# Manual de Despliegue y Convivencia en Servidor - Temikia CRM & n8n
 
-Este manual proporciona instrucciones detalladas paso a paso para configurar tu servidor Unix (Linux / Ubuntu / Debian) y usar el script de automatización `deploy.sh` para actualizar la aplicación en producción con un solo comando.
-
----
-
-## 🛠️ Requisitos Previos en el Servidor
-
-Antes de ejecutar el script por primera vez, asegúrate de que el servidor tenga instaladas las siguientes herramientas:
-
-### 1. Actualizar el Sistema
-```bash
-sudo apt update && sudo apt upgrade -y
-```
-
-### 2. Instalar Node.js (Versión LTS recomendada)
-```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt-get install -y nodejs
-```
-
-### 3. Instalar Git y PM2
-```bash
-sudo apt-get install -y git
-sudo npm install -y -g pm2
-```
+Este manual detalla la arquitectura de producción y los pasos para el despliegue del **CRM de Temikia** y **n8n** conviviendo de manera segura e inteligente en el mismo servidor Unix, utilizando **Nginx** como Proxy Inverso único y **PM2 / Docker** como gestores de procesos.
 
 ---
 
-## 🚀 Configuración del Backend con PM2
+## 🏗️ Resumen de la Arquitectura
 
-**PM2 (Process Manager 2)** se encargará de mantener vivo el proceso de Node.js (`server.js`) indefinidamente, reiniciándolo automáticamente si falla o si el servidor físico se reinicia.
+Para lograr una convivencia óptima y segura, el servidor está configurado bajo la siguiente arquitectura unificada:
 
-### 1. Iniciar la aplicación por primera vez en PM2
-Desde la carpeta raíz del proyecto en el servidor, ejecuta:
-```bash
-pm2 start server.js --name "temikia-crm"
-```
-
-### 2. Configurar Persistencia tras Reinicios de Sistema
-Para que la aplicación se active automáticamente al encender el servidor físico, ejecuta:
-```bash
-pm2 startup
-```
-*Este comando generará una línea de comando adicional en pantalla. Cópiala y ejecútala con `sudo` para completar la configuración.*
-
-Finalmente, guarda la lista de procesos activos:
-```bash
-pm2 save
-```
+1. **CRM de Temikia** (Frontend y Backend unificados):
+   - El backend Express (`server.js`) funciona en modo producción (`NODE_ENV=production`).
+   - Sirve directamente los archivos compilados de React/Vite desde la carpeta local `./dist` para todas las rutas no-API (`/*`), y atiende las llamadas a `/api/*`.
+   - Se ejecuta localmente en el puerto `127.0.0.1:4001` mediante el proceso **PM2** llamado `temikia-crm`.
+2. **n8n Instance**:
+   - Corre dentro de un contenedor Docker en el puerto interno `5678` (expuesto como servicio `n8n_n8n`).
+   - Protegido por el cortafuegos UFW (`sudo ufw deny 5678/tcp`), impidiendo conexiones directas sin HTTPS.
+3. **Nginx (Único Punto de Entrada)**:
+   - Actúa como Proxy Inverso seguro, escuchando en los puertos estándar `80` (HTTP) y `443` (HTTPS / HTTP2).
+   - Administra los certificados SSL de Let's Encrypt de forma automática para ambos dominios:
+     * **`crm.temikia.com`** -> Redirige al puerto interno del CRM (`127.0.0.1:4001`).
+     * **`n8n.temikia.com`** -> Redirige al puerto interno de n8n (`127.0.0.1:5678`), soportando WebSockets mediante el mapeo de conexiones.
 
 ---
 
-## 🌐 Configuración del Servidor Web Nginx (Recomendado)
+## ⚡ Solución al Conflicto de Puertos (Docker/Traefik vs Nginx)
 
-En producción, la mejor práctica es usar **Nginx** para servir los archivos compilados del frontend React de manera súper rápida y actuar como un proxy inverso para el backend de Express.
+Si el servidor tiene instalado un gestor como *Easypanel*, este levanta por defecto un contenedor de **Traefik** que se apropia de los puertos `80` y `443`, impidiendo que Nginx pueda arrancar.
 
-### 1. Instalar Nginx
+### Comando para liberar los puertos 80/443:
+Para apagar Traefik y permitir que Nginx tome el control total del tráfico web del servidor, ejecuta:
 ```bash
-sudo apt install nginx -y
+docker service scale easypanel-traefik=0
 ```
+*(Esto escala el contenedor de Traefik a 0 instancias, liberando inmediatamente los puertos web).*
 
-### 2. Configurar Bloque de Servidor (Server Block)
-Crea un archivo de configuración para la app:
-```bash
-sudo nano /etc/nginx/sites-available/temikia-crm
-```
+---
 
-Pega la siguiente estructura de configuración (reemplazando `tu-dominio.com` por tu IP o dominio real):
+## 🛡️ Configuración de VirtualHosts en Nginx
 
+Los archivos de configuración en `/etc/nginx/sites-available/` deben configurarse de la siguiente manera:
+
+### 1. Configuración del CRM (`/etc/nginx/sites-available/temikia_crm`)
+Este bloque redirige todo el tráfico HTTP a HTTPS y delega el servicio unificado (Vite + Express) al puerto `4001`:
 ```nginx
 server {
     listen 80;
-    server_name tu-dominio.com;
+    listen [::]:80;
+    server_name crm.temikia.com;
 
-    # Ruta absoluta a la carpeta de compilación del Frontend React
-    root /var/www/TemikiaCRM_test_01/dist;
-    index index.html;
+    return 301 https://$host$request_uri;
+}
 
-    # Carga de recursos estáticos del Frontend
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name crm.temikia.com;
+
+    ssl_certificate /etc/letsencrypt/live/crm.temikia.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/crm.temikia.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # Encabezado CSP seguro configurado en conjunto con Helmet
     location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # Redirección segura de la API hacia el Backend (Puerto 4001)
-    location /api {
-        proxy_pass http://localhost:4001;
+        proxy_pass http://127.0.0.1:4001;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
+
         proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto https;
     }
 }
 ```
 
-### 3. Activar Configuración y Reiniciar Nginx
-```bash
-sudo ln -s /etc/nginx/sites-available/temikia-crm /etc/nginx/sites-enabled/
-sudo nginx -t # Validar sintaxis
-sudo systemctl restart nginx
+### 2. Configuración de n8n (`/etc/nginx/sites-available/n8n.temikia.com`)
+Requiere soporte para WebSockets (`Upgrade` / `Connection`) para el editor en tiempo real:
+```nginx
+server {
+    listen 80;
+    listen [::]:80;
+    server_name n8n.temikia.com;
+
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name n8n.temikia.com;
+
+    ssl_certificate /etc/letsencrypt/live/n8n.temikia.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/n8n.temikia.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:5678;
+        proxy_http_version 1.1;
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_buffering off;
+        proxy_read_timeout 3600;
+        proxy_send_timeout 3600;
+    }
+}
+```
+
+*Nota: Asegúrate de incluir el mapeo de Websockets en `/etc/nginx/conf.d/websocket_upgrade.conf`:*
+```nginx
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+}
 ```
 
 ---
 
-## ⚙️ Uso del Script de Despliegue Automático
+## ⚙️ Uso del Script de Despliegue Automático (`deploy.sh`)
 
-Una vez configurado el servidor, cada vez que subas cambios a tu repositorio Git, el proceso de actualización se reduce a esto:
+El script de actualización automática `deploy.sh` en el directorio `/root/temikiaCRM` se encarga de compilar el frontend localmente e informar al proceso de PM2.
 
-### 1. Dar permisos de ejecución al script (Solo la primera vez)
-```bash
-chmod +x deploy.sh
-```
-
-### 2. Ejecutar la actualización
+### Ejecución
+Cada vez que subas cambios al repositorio Git, ejecuta esto en la terminal del servidor:
 ```bash
 ./deploy.sh
 ```
 
-### 🔍 ¿Qué hace este script de forma automática?
-1. **Valida el Entorno**: Comprueba que Node.js y Git estén en orden.
-2. **Descarga desde Git**: Realiza `git pull` de la rama activa de forma automática.
-3. **Actualiza Dependencias**: Corre `npm install` instalando paquetes nuevos de desarrollo o producción.
-4. **Compila el Frontend**: Ejecuta `npm run build` creando los archivos optimizados de producción dentro de `dist/`.
-5. **Reinicia el Backend**: Ejecuta de forma segura `pm2 restart temikia-crm` garantizando cero pérdidas de servicio en el proceso.
+### 🔍 Flujo automatizado:
+1. **Pull Git**: Obtiene los últimos cambios de la rama actual de forma automática.
+2. **Dependencias**: Instala actualizaciones con `npm install`.
+3. **Build Frontend**: Compila la app React creando la carpeta `./dist`.
+4. **Reinicio de Backend**: Reinicia de manera segura el proceso `temikia-crm` en PM2 aplicando las nuevas variables de entorno (`pm2 restart temikia-crm --update-env`).
+5. **Persistencia**: Guarda la lista de PM2 en el arranque del sistema (`pm2 save`).
+
+---
+
+## 🔍 Comandos Útiles de Monitoreo en el Servidor
+
+### Estado de los puertos y servicios Nginx:
+```bash
+sudo ss -ltnp | grep -E ':80|:443|:4001|:5678'
+```
+
+### Monitoreo en tiempo real del CRM:
+```bash
+pm2 status                  # Ver estado de los procesos
+pm2 logs temikia-crm        # Ver logs del backend en tiempo real
+```
+
+### Certificados SSL Let's Encrypt:
+```bash
+sudo certbot certificates   # Listar certificados activos
+```

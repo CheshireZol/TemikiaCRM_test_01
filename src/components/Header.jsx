@@ -18,9 +18,9 @@ const Header = ({
       case 'list':
         return 'Cartera de Prospectos';
       case 'ai':
-        return 'Centro de IA TemikIA';
+        return 'Centro de IA Temikia';
       default:
-        return 'CRM TemikIA';
+        return 'CRM Temikia';
     }
   };
 

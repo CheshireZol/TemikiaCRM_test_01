@@ -132,7 +132,7 @@ const AIAssistant = ({ user, triggerRefresh, onLeadClick }) => {
       return;
     }
 
-    const subject = encodeURIComponent(`Propuesta de Automatización IA para ${selectedLead.nombre} - TemikIA Agency`);
+    const subject = encodeURIComponent(`Propuesta de Automatización IA para ${selectedLead.nombre} - Temikia Agency`);
     const body = encodeURIComponent(getActiveScript());
     const mailtoUrl = `mailto:${firstEmail}?subject=${subject}&body=${body}`;
     window.open(mailtoUrl, '_self');
@@ -464,7 +464,7 @@ ESTADO DEL LEAD SCORE: ${selectedLead.lead_score}/100`;
         <div className="card" style={{ minHeight: 'auto', backgroundColor: 'var(--color-brand-dark)', color: 'var(--text-white)', border: 'none' }}>
           <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '14px', fontWeight: 700, color: 'var(--text-white)', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Cpu size={16} style={{ color: 'var(--color-ai)' }} />
-            <span>Guía de Scoring TemikIA</span>
+            <span>Guía de Scoring Temikia</span>
           </h4>
           <p style={{ fontSize: '11.5px', color: '#94A3B8', marginTop: '4px' }}>
             El Agente IA puntúa el perfil automáticamente basándose en los siguientes pesos técnicos:
