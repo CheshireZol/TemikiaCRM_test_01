@@ -467,7 +467,7 @@ const Kanban = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefresh
                   padding: '3px 8px',
                   borderRadius: 'var(--radius-full)'
                 }}>
-                  {totalMacroLeads} leads
+                  {totalMacroLeads}
                 </span>
               </div>
 

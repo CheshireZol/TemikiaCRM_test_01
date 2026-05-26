@@ -731,6 +731,32 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
   const firstWa = waList.length > 0 ? waList[0] : '';
   const cleanWa = firstWa ? firstWa.replace(/[^\d+]/g, '') : '';
 
+  // Generate generic, brief conversation-opening message for WhatsApp
+  const getWhatsAppMessage = () => {
+    const trimmedName = form.contacto_nombre ? form.contacto_nombre.trim() : '';
+    const firstName = trimmedName ? trimmedName.split(/\s+/)[0] : '';
+    const greeting = firstName ? `Hola ${firstName}, espero que te encuentres muy bien.` : 'Hola, espero que te encuentres muy bien.';
+    
+    const businessName = form.nombre ? form.nombre.trim() : '';
+    const city = form.ciudad ? form.ciudad.trim() : '';
+    const giro = lead.giro_nombre || form.estilo || '';
+    
+    let context = '';
+    if (businessName) {
+      context = ` en relación a ${businessName}`;
+      if (city && giro) {
+        context += ` (del giro ${giro.toLowerCase()} en ${city})`;
+      } else if (city) {
+        context += ` en ${city}`;
+      } else if (giro) {
+        context += ` (giro ${giro.toLowerCase()})`;
+      }
+    }
+    
+    const message = `${greeting} Te contacto${context} para hacerte una consulta muy breve. ¿Es este el medio adecuado para platicar? Saludos.`;
+    return encodeURIComponent(message);
+  };
+
   // Google Maps embed resolver using place_url (extracts query parameter to bypass X-Frame blocking)
   const getEmbedMapUrl = () => {
     if (lead.place_url) {
@@ -986,7 +1012,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
                   <input type="text" name="whatsapp" value={form.whatsapp} onChange={handleChange} className="property-input" style={{ flex: 1 }} />
                   {cleanWa ? (
                     <a 
-                      href={`https://wa.me/${cleanWa}`} 
+                      href={`https://wa.me/${cleanWa}?text=${getWhatsAppMessage()}`} 
                       target="_blank" 
                       rel="noopener noreferrer" 
                       className="btn btn-secondary" 
@@ -997,7 +1023,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
                     </a>
                   ) : cleanPhone ? (
                     <a 
-                      href={`https://wa.me/${cleanPhone}`} 
+                      href={`https://wa.me/${cleanPhone}?text=${getWhatsAppMessage()}`} 
                       target="_blank" 
                       rel="noopener noreferrer" 
                       className="btn btn-secondary" 
@@ -1377,14 +1403,20 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
         </div>
 
         {/* Drawer Footer Actions */}
-        <div className="drawer-footer">
+        <div className="drawer-footer" style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '1fr auto 1fr', 
+          alignItems: 'center', 
+          width: '100%',
+          gap: '12px'
+        }}>
           <button 
             type="button"
             className="btn btn-danger" 
             onClick={() => setShowDeleteConfirm(true)}
             disabled={isDeleting || isSaving}
             style={{ 
-              marginRight: 'auto', 
+              justifySelf: 'start', 
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center',
@@ -1399,7 +1431,8 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
             }}
             title="Eliminar Prospecto"
           >
-            <Trash2 size={18} />
+            <Trash2 size={16} />
+            {/* <span>Borrar</span> */}
           </button>
 
           <button 
@@ -1408,17 +1441,17 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
             onClick={handlePrintFicha}
             disabled={isSaving || isDeleting}
             style={{ 
+              justifySelf: 'center',
               display: 'flex', 
               alignItems: 'center', 
               gap: '6px',
               backgroundColor: 'rgba(6, 182, 212, 0.08)',
               borderColor: 'rgba(6, 182, 212, 0.25)',
-              color: 'var(--color-primary)',
-              marginRight: '8px'
+              color: 'var(--color-primary)'
             }}
           >
             <Printer size={16} />
-            <span>Imprimir Ficha</span>
+            <span>Imprimir</span>
           </button>
 
           <button 
@@ -1426,6 +1459,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
             onClick={handleSave}
             disabled={isSaving || isDeleting}
             style={{ 
+              justifySelf: 'end',
               display: 'flex', 
               alignItems: 'center', 
               gap: '8px',

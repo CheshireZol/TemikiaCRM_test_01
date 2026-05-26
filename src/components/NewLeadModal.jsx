@@ -108,7 +108,7 @@ const NewLeadModal = ({ onClose, onSaveSuccess }) => {
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Plus size={18} style={{ color: 'var(--color-primary)' }} />
-            <h3 className="modal-title">Registrar Nuevo Prospecto Comercial</h3>
+            <h3 className="modal-title">Registrar</h3>
           </div>
           <button className="modal-close-btn" onClick={onClose}>
             <X size={18} />
@@ -258,7 +258,7 @@ const NewLeadModal = ({ onClose, onSaveSuccess }) => {
           </div>
 
           {/* Modal Footer */}
-          <div className="modal-footer">
+          <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
             <button 
               type="button" 
               className="btn btn-secondary" 
@@ -274,7 +274,7 @@ const NewLeadModal = ({ onClose, onSaveSuccess }) => {
               style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
             >
               <Sparkles size={16} />
-              <span>{isSaving ? 'Registrando...' : 'Registrar Lead en Base de Datos'}</span>
+              <span>{isSaving ? 'Registrando...' : 'Registrar Lead'}</span>
             </button>
           </div>
         </form>

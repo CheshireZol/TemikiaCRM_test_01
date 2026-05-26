@@ -966,7 +966,7 @@ body {
   height: 100vh;
   background-color: rgba(15, 23, 42, 0.4);
   backdrop-filter: blur(4px);
-  z-index: 200;
+  z-index: 1100;
   display: flex;
   justify-content: flex-end;
   animation: fadeIn 0.25s ease;
@@ -1258,7 +1258,7 @@ body {
   height: 100vh;
   background-color: rgba(15, 23, 42, 0.5);
   backdrop-filter: blur(4px);
-  z-index: 250;
+  z-index: 1100;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1646,9 +1646,10 @@ body {
   }
 
   .main-content {
-    min-height: calc(100vh - var(--header-height));
+    min-height: 100vh;
     width: 100vw;
     overflow-x: hidden;
+    padding-top: 64px; /* Offset the fixed mobile header */
   }
 
   .page-body {
@@ -1684,8 +1685,13 @@ body {
   }
 
   .header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
     padding: 0 16px;
     height: 64px;
+    z-index: 900; /* Ensure mobile header is above body content, below backdrop */
   }
 
   .header-left h1 {

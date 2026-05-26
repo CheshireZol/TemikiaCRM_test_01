@@ -464,35 +464,87 @@ ESTADO DEL LEAD SCORE: ${selectedLead.lead_score}/100`;
         <div className="card" style={{ minHeight: 'auto', backgroundColor: 'var(--color-brand-dark)', color: 'var(--text-white)', border: 'none' }}>
           <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '14px', fontWeight: 700, color: 'var(--text-white)', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Cpu size={16} style={{ color: 'var(--color-ai)' }} />
-            <span>Guía de Scoring Temikia</span>
+            <span>Guía de Scoring Temikia (v3)</span>
           </h4>
           <p style={{ fontSize: '11.5px', color: '#94A3B8', marginTop: '4px' }}>
-            El Agente IA puntúa el perfil automáticamente basándose en los siguientes pesos técnicos:
+            El Agente IA califica la madurez digital del prospecto en tiempo real basándose en 6 dimensiones ponderadas:
           </p>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11.5px', marginTop: '12px', borderTop: '1px solid #1E293B', paddingTop: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Sitio Web Activo</span>
-              <strong style={{ color: 'var(--color-ai)' }}>+25 pts</strong>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #1E293B', paddingBottom: '4px' }}>
+              <span style={{ fontWeight: 600 }}>1. Contactabilidad e Identificación</span>
+              <strong style={{ color: 'var(--color-ai)' }}>Máx 25 pts</strong>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Canales RRSS Detectados</span>
-              <strong style={{ color: 'var(--color-ai)' }}>+30 pts max</strong>
+            <div style={{ paddingLeft: '8px', color: '#94A3B8', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>• WhatsApp Directo</span>
+                <span>+8 pts</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>• Correo Electrónico</span>
+                <span>+8 pts</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>• Teléfono Registrado</span>
+                <span>+4 pts</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>• Persona de Contacto</span>
+                <span>+5 pts</span>
+              </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Línea Directa de WhatsApp</span>
-              <strong style={{ color: 'var(--color-ai)' }}>+15 pts</strong>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #1E293B', paddingBottom: '4px', marginTop: '4px' }}>
+              <span style={{ fontWeight: 600 }}>2. Calidad y Perfilado</span>
+              <strong style={{ color: 'var(--color-ai)' }}>Máx 10 pts</strong>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Correos de Contacto</span>
+            <div style={{ paddingLeft: '8px', color: '#94A3B8', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>• Notas extensas (&gt;20 carac.)</span>
+                <span>+5 pts</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>• Dirección física registrada</span>
+                <span>+5 pts</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #1E293B', paddingBottom: '4px', marginTop: '4px' }}>
+              <span style={{ fontWeight: 600 }}>3. Tráfico y Rating (Google Maps)</span>
+              <strong style={{ color: 'var(--color-ai)' }}>Máx 20 pts</strong>
+            </div>
+            <div style={{ paddingLeft: '8px', color: '#94A3B8', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>• Opiniones (&gt;100 / 25-100 / &gt;0)</span>
+                <span>+12 / +8 / +4 pts</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>• Rating de Estrellas (★ &gt;= 4.2 / &gt;0)</span>
+                <span>+8 / +4 pts</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #1E293B', paddingBottom: '4px', marginTop: '4px' }}>
+              <span style={{ fontWeight: 600 }}>4. Infraestructura y Redes</span>
+              <strong style={{ color: 'var(--color-ai)' }}>Máx 25 pts</strong>
+            </div>
+            <div style={{ paddingLeft: '8px', color: '#94A3B8', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>• Sitio Web Corporativo Activo</span>
+                <span>+15 pts</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>• Ecosistema Meta (2+ redes / 1 red)</span>
+                <span>+10 / +5 pts</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+              <span style={{ fontWeight: 600 }}>5. Huella Digital (web_search)</span>
               <strong style={{ color: 'var(--color-ai)' }}>+10 pts</strong>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Datos del Tomador de Citas</span>
-              <strong style={{ color: 'var(--color-ai)' }}>+5 pts</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Bitácora de Notas (&gt;20 carac)</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+              <span style={{ fontWeight: 600 }}>6. Presión Competitiva (Clúster local)</span>
               <strong style={{ color: 'var(--color-ai)' }}>+10 pts</strong>
             </div>
           </div>
