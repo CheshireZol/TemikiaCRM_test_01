@@ -276,6 +276,15 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
   const handlePrintFicha = () => {
     if (!lead) return;
     
+    // Grab all stylesheets and inline styles from the parent document to preserve formatting in dev and production
+    const parentStylesheets = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+      .map(link => `<link rel="stylesheet" href="${link.href}">`)
+      .join('\n');
+
+    const parentStyles = Array.from(document.querySelectorAll('style'))
+      .map(style => `<style>${style.innerHTML}</style>`)
+      .join('\n');
+
     const suggestedProducts = getSuggestedProducts(lead, form);
     
     // Format dates to friendly Spanish format
@@ -335,25 +344,9 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
 <head>
   <meta charset="UTF-8">
   <title>Temikia - Ficha Técnica - ${form.nombre}</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"><\/script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            temikia: {
-              brand: '#00f2fe',
-              darkBlue: '#0d1e3d',
-              bgGray: '#e2e8f0',
-              cardGray: '#f8fafc',
-              textDark: '#0f172a',
-            }
-          }
-        }
-      }
-    }
-  <\/script>
+  <!-- Injected Parent Styles (Same-Origin & Dev friendly to bypass CSP script block) -->
+  ${parentStylesheets}
+  ${parentStyles}
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     
