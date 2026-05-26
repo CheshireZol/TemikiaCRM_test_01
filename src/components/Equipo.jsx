@@ -19,6 +19,16 @@ import {
   BookOpen
 } from 'lucide-react';
 import { parseStringArray, formatDate } from '../utils.js';
+import { 
+  ResponsiveContainer, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend 
+} from 'recharts';
 
 const statusLabels = {
   nuevo: "Nuevo",
@@ -165,6 +175,21 @@ const Equipo = ({ user, onLeadClick }) => {
     if (!interestStr || interestStr.trim() === '') return [];
     return interestStr.split(',').map(s => s.trim()).filter(Boolean);
   };
+
+  // Map data for sales friendly competition charts
+  const chartData = miembros.map(m => {
+    const leadsGanados = parseInt(m.leads_ganados || 0);
+    const leadsPerdidos = parseInt(m.leads_perdidos || 0);
+    const totalCerrados = leadsGanados + leadsPerdidos;
+    const conversion = totalCerrados > 0 ? Math.round((leadsGanados / totalCerrados) * 100) : 0;
+    
+    return {
+      name: m.nombre_corto || m.nombre_completo.split(' ')[0],
+      'Efectividad (%)': conversion,
+      'Lead Score Promedio': Math.round(parseFloat(m.avg_lead_score || 0)),
+      'Leads Ganados': leadsGanados
+    };
+  });
 
   if (loading && miembros.length === 0) {
     return (
@@ -517,6 +542,89 @@ const Equipo = ({ user, onLeadClick }) => {
             </div>
           );
         })}
+      </div>
+
+      {/* 3. SALES COMPETITION / MOTIVATIONAL LEADERBOARD CHART */}
+      <div className="glass-card" style={{
+        padding: '24px',
+        borderRadius: 'var(--radius-lg)',
+        border: '1px solid var(--border-color)',
+        backgroundColor: 'var(--bg-card)',
+        boxShadow: 'var(--shadow-md)',
+        marginTop: '12px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h3 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Award size={18} style={{ color: '#F59E0B' }} />
+              <span>🏆 Tabla de Competitividad Comercial</span>
+            </h3>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, marginTop: '2px' }}>
+              Métricas de rendimiento comparativo para incentivar la excelencia y motivación de todo el equipo de ventas.
+            </p>
+          </div>
+        </div>
+
+        <div style={{ width: '100%', height: '320px', marginTop: '8px' }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              margin={{ top: 20, right: 10, left: -20, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" vertical={false} />
+              <XAxis 
+                dataKey="name" 
+                stroke="var(--text-secondary)" 
+                fontSize={11}
+                tickLine={false} 
+                axisLine={false}
+              />
+              <YAxis 
+                stroke="var(--text-secondary)" 
+                fontSize={11}
+                tickLine={false} 
+                axisLine={false}
+              />
+              <Tooltip 
+                contentStyle={{
+                  backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                  borderColor: 'var(--border-color)',
+                  borderRadius: 'var(--radius-md)',
+                  color: '#fff',
+                  fontSize: '12px',
+                  boxShadow: 'var(--shadow-md)',
+                  backdropFilter: 'blur(8px)'
+                }}
+                cursor={{ fill: 'rgba(255, 255, 255, 0.02)' }}
+              />
+              <Legend 
+                wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+                iconSize={10}
+              />
+              <Bar 
+                dataKey="Efectividad (%)" 
+                fill="#10B981" 
+                radius={[4, 4, 0, 0]}
+                maxBarSize={30}
+              />
+              <Bar 
+                dataKey="Lead Score Promedio" 
+                fill="#06B6D4" 
+                radius={[4, 4, 0, 0]}
+                maxBarSize={30}
+              />
+              <Bar 
+                dataKey="Leads Ganados" 
+                fill="#2563EB" 
+                radius={[4, 4, 0, 0]}
+                maxBarSize={30}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
     </div>
