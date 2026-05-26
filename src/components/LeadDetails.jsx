@@ -639,10 +639,38 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
     // Add self-printing script specifically for browser print
     const printHtml = htmlContent.replace('</body>', `
       <script>
-        window.onload = function() {
+        async function waitForPrintAssets() {
+          const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
+
+          await Promise.all(links.map(link => {
+            return new Promise(resolve => {
+              if (link.sheet) return resolve();
+
+              link.onload = resolve;
+              link.onerror = resolve;
+
+              // Safe fallback timeout
+              setTimeout(resolve, 4000);
+            });
+          }));
+
+          if (document.fonts && document.fonts.ready) {
+            try {
+              await document.fonts.ready;
+            } catch (e) {}
+          }
+
+          // Force browser reflow
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          await new Promise(resolve => setTimeout(resolve, 800));
+        }
+
+        window.addEventListener('load', async function() {
+          await waitForPrintAssets();
+          window.focus();
           window.print();
-          setTimeout(function() { window.close(); }, 500);
-        };
+          setTimeout(function() { window.close(); }, 1000);
+        });
       <\/script>
     </body>`);
 
