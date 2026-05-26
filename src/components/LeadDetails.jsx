@@ -26,7 +26,150 @@ import {
   getSuggestedProducts
 } from '../utils.js';
 
-const LeadDetails = ({ leadId, onClose, onSaveSuccess }) => {
+// Dictionary of WhatsApp Templates organized by business category/giro
+const WHATSAPP_TEMPLATES = {
+  "Arte": [
+    "Hola [nombre_contacto]. Soy [nombre_ejecutivo] de Temikia. Últimamente converso con galerías y artistas de [ciudad] y me comentan que uno de sus mayores retos es perder encargos porque no pueden responder rápido los mensajes de [canal_o_red_social] mientras están en su proceso creativo. Otros me dicen que el problema es el tiempo que pierden enviando precotizaciones o detalles de envíos uno por uno. No sé si alguno de estos escenarios te resulte familiar en [nombre_negocio], o si la fricción se encuentra en otro frente. Si esto hace eco contigo, ¿te interesaría ver cómo un asistente con IA responde y precotiza tus obras en automático?",
+    "Qué tal [nombre_contacto]. Hablando con profesionales del sector del arte, noto que muchos atraen interesados constantemente gracias a su contenido visual, pero batallan para centralizar esos contactos y darles un seguimiento automático para futuras exposiciones o ventas. Soy [nombre_ejecutivo] de Temikia. No estoy seguro de si la falta de bases de datos ordenadas y seguimiento de prospectos sea un cuello de botella hoy en [nombre_negocio], o si su desafío principal hoy va por otro lado. Si te resulta familiar este dolor, ¿tendrías 5 minutos la próxima semana para mostrarte cómo lo resolvemos?",
+    "Hola [nombre_contacto]. Analizando el rubro de galerías y creadores en [ciudad], notamos que un gran desafío es atender a coleccionistas interesados en [canal_o_red_social] mientras el equipo está en pleno proceso creativo. Otros mencionan que su problema real es dar seguimiento a piezas de alto valor sin parecer insistentes. Soy [nombre_ejecutivo] de Temikia. No sé si en [nombre_negocio] vivan algo de esto, o si en la mente tienen algún otro problema más urgente a resolver. Si es así, ¿tendría sentido que revisemos cómo delegar esto a un agente IA?",
+    "Qué tal [nombre_contacto]. Te escribe [nombre_ejecutivo]. Conversando con profesionales de [giro_negocio], me cuentan que atraer tráfico visual no es problema, pero sí lo es convertir esos \"me gusta\" en una base de datos de compradores VIP a la cual nutrir. En Temikia automatizamos la extracción y calificación de esos contactos. Ignoro si hoy esto sea un cuello de botella para ustedes o si la prioridad actual sea distinta. ¿Están abiertos a ver un breve ejemplo?",
+    "Buen día. Mi nombre es [nombre_ejecutivo] y represento a Temikia. Muchos negocios de arte nos comparten que organizar envíos, seguros y precotizaciones por [canal_preferido] les consume horas diarias. Otros sufren por no tener sus datos centralizados para ofrecer atención personalizada. No estoy seguro si [nombre_negocio] enfrente estos retos actualmente o si la fricción se encuentre en otro frente. Si esto resuena contigo, ¿te interesaría evaluar un tablero automático que lo resuelva?",
+    "Qué tal [nombre_contacto]. Soy [nombre_ejecutivo]. Al colaborar con creadores del sector de [giro_negocio], noto que tras participar en ferias o exposiciones, acumulan decenas de contactos que se quedan rezagados inútilmente en libretas o chats sin un flujo de nutrición automatizado. En Temikia creamos sistemas que digitalizan y segmentan estos prospectos al instante. No sé si la falta de seguimiento post-evento sea un problema en [nombre_negocio], o si su cuello de botella operativo real esté en otra área. Si te interesa ver cómo se resuelve, ¿te comparto un ejemplo rápido?",
+    "Hola [nombre_contacto]. Mi nombre es [nombre_ejecutivo] de Temikia. Muchos estudios de arte nos comparten que el proceso de gestionar encargos personalizados o comisiones es un caos operativo: enviar contratos, validar anticipos y reportar avances por [canal_o_red_social] les quita horas de taller. Desconozco si en [nombre_negocio] este flujo manual afecte sus tiempos de entrega o si la complejidad operativa se ubique en otro punto. Si es así, ¿estarías abierto a revisar cómo centralizar el estatus de tus proyectos sin esfuerzo manual?",
+    "Qué tal [nombre_contacto]. Te saluda [nombre_ejecutivo]. Analizando el mercado de [giro_negocio], vemos que atender solicitudes de cotización que no se atienden pronto hace que se enfríen prospectos de alto valor. En Temikia desarrollamos agentes conversacionales multilingües que envían catálogos y tarifas 24/7. No estoy seguro si la atención fuera de horario sea un cuello de botella para [nombre_negocio] o si la fuga de prospectos ocurra en un frente distinto. Si te resuena, ¿tendría sentido revisar un demo rápido?",
+    "Buen día [nombre_contacto]. Soy [nombre_ejecutivo] de Temikia. Varias firmas de arte nos comentan que enviar catálogos digitales pesados y listas de precios por [canal_preferido] satura a su equipo, además de que no saben qué piezas generaron verdadero interés. Creamos tableros que automatizan el envío de portafolios y miden la interacción del cliente. Ignoro si en [nombre_negocio] busquen optimizar este proceso de venta o si su prioridad inmediata esté en otro frente. ¿Te interesaría conocer los detalles?"
+  ],
+  "Arte corporal y perforaciones": [
+    "Buen día [nombre_contacto]. Te habla [nombre_ejecutivo]. Colaborando con estudios de [giro_negocio], me comparten que su mayor dolor de cabeza son las inasistencias o cancelaciones de última hora que les dejan la agenda rota y merman sus ingresos. Otros mencionan el tiempo perdido respondiendo las mismas dudas de cuidados post-tatuaje por WhatsApp. No sé si en [nombre_negocio] se identifiquen con esto o si el verdadero dolor de cabeza esté en otro punto de la operación. Si es así, ¿tiene sentido que platiquemos sobre cómo automatizamos las confirmaciones y reagendamientos automáticos desde Temikia?",
+    "Hola [nombre_contacto]. Mi nombre es [nombre_ejecutivo] de Temikia. Varios artistas corporales me cuentan que pierden mucho tiempo filtrando ideas y dando precios aproximados por [canal_preferido], restándoles horas en el estudio. Algunos más sufren para organizar los anticipos y la disponibilidad de horarios permitidos. Ignoro si esta carga operativa les suceda en [nombre_negocio] o si la fricción se encuentre en otro frente. Si algo de esto te resuena, ¿te gustaría que te envíe un ejemplo de cómo nuestro agente filtra, precotiza y agenda citas solo?",
+    "Hola [nombre_contacto], soy [nombre_ejecutivo] de Temikia. Hablando con estudios de [giro_negocio], el dolor más frecuente que escucho es el tiempo que pierden respondiendo mensajes de personas que solo buscan precio y no agendan. Otros batallan para gestionar los anticipos de forma ordenada. No sé si en [nombre_negocio] se identifiquen con alguno de estos escenarios o si su desafío principal hoy sea distinto. Si es así, ¿te enviamos un video de 1 minuto mostrando cómo un asistente IA filtra y cobra por ti?",
+    "Qué tal [nombre_contacto]. Últimamente asesoro a estudios en [ciudad] y me dicen que enviar instrucciones de cuidado post-tatuaje y hacer seguimiento a cada cliente para futuros retoques es operativamente inviable a mano. Desde Temikia creamos ecosistemas que automatizan esto por [canal_o_red_social]. Soy [nombre_ejecutivo], ¿les resulta familiar esta fuga de tiempo o su desafío principal hoy va por otro lado?",
+    "Buen día. Te saluda [nombre_ejecutivo]. Varios artistas corporales me comentan que su agenda es un caos cuando intentan cuadrar disponibilidades, diseños y sesiones largas por [canal_preferido]. En Temikia conectamos WhatsApp directo a su calendario para reservas 100% autónomas. Desconozco si esto sea un dolor de cabeza en [nombre_negocio] o si tengan algún otro problema más urgente a resolver. Si hace sentido, ¿tendrías un momento la próxima semana para platicarlo?",
+    "Hola [nombre_contacto]. Te escribe [nombre_ejecutivo] de Temikia. Colaborando con estudios de [giro_negocio], veo que la organización de \"Flash Days\" o la visita de artistas invitados suele colapsar sus canales de atención, mezclando citas regulares con solicitudes masivas. Diseñamos flujos específicos de agendamiento exprés para eventos de alta demanda. Desconozco si en [nombre_negocio] batallen para gestionar estos picos de trabajo o si la complicación operativa se ubique en otra parte. Si es el caso, ¿te gustaría ver cómo automatizamos la asignación de turnos?",
+    "Qué tal [nombre_contacto]. Soy [nombre_ejecutivo]. Hablando con dueños de estudios en [ciudad], me dicen que la recolección de responsivas médicas y el llenado de formularios de consentimiento consume demasiado tiempo presencial en el mostrador. En Temikia integramos sistemas que envían y validan estos documentos vía [canal_preferido] un día antes de la cita. No sé si en [nombre_negocio] sigan haciendo este papeleo a mano o si la carga administrativa real se encuentre en otro frente. Si buscas digitalizarlo, ¿platicamos 5 minutos esta semana?",
+    "Hola [nombre_contacto], te saluda [nombre_ejecutivo] de Temikia. Muchos artistas con agendas cerradas nos comentan que gestionar sus listas de espera manualmente es inviable, provocando que cuando una cita se cancela, el espacio quede vacío por no poder contactar rápido a los sustitutos. Automatizamos listas de espera dinámicas que reasignan el turno al instante por [canal_o_red_social]. Ignoro si en [nombre_negocio] sufran por esta pérdida de ingresos o si su principal reto actual sea otro. ¿Hará sentido que revisemos la solución?",
+    "Qué tal [nombre_contacto]. Mi nombre es [nombre_ejecutivo]. En el rubro de [giro_negocio], noto que recordar a los clientes de perforaciones su cita de seguimiento para el cambio de pieza (downsize) depende totalmente de la memoria del perforador, perdiendo una venta secundaria garantizada. Con Temikia, estos recordatorios se disparan solos según el tiempo de cicatrización. Desconozco si en [nombre_negocio] tengan automatizada esta recompra o si la atención esté puesta en un desafío distinto. ¿Te interesaría evaluar un flujo de este tipo?",
+    "Buen día [nombre_contacto]. Te habla [nombre_ejecutivo] de Temikia. Varios estudios nos reportan que, aunque sus clientes salen felices con sus tatuajes, olvidan dejar reseñas en Google Maps, limitando su posicionamiento local. Desarrollamos automatizaciones que vinculan el fin de la sesión con una solicitud automatizada de opinión calificada. No sé si incrementar sus reseñas sea prioridad actual para [nombre_negocio] o si la fricción se encuentre en otro frente. Si es así, ¿están abiertos a explorar la herramienta?"
+  ],
+  "Educación": [
+    "Hola [nombre_contacto], te saluda [nombre_ejecutivo]. Hablando con directivos del sector educativo, me comentan que en época de admisiones pierden muchos alumnos potenciales por demorar en responder dudas a los padres de familia. Otros me dicen que la carga administrativa de armar exámenes, generar retroalimentación y enviar informes de cursos los sobrepasa. No sé si en [nombre_negocio] enfrenten algo similar o si los cuellos de botella administrativos estén en otro punto. Desde Temikia automatizamos la gestión académica y de admisiones; ¿estarías abierto a ver un breve caso de uso?",
+    "Qué tal [nombre_contacto]. En Temikia, analizando instituciones de [giro_negocio] en [ciudad], identificamos que muchas sufren al no tener un sistema de seguimiento para revivir el interés de prospectos que no se matricularon a la primera. Otros nos cuentan que el control y la comunicación con sus bases de datos de alumnos actuales consumen demasiado tiempo. Soy [nombre_ejecutivo]. Desconozco si en [nombre_negocio] sientan que se les enfrían prospectos por falta de seguimiento o si su verdadero desafío comercial esté en otro frente. Si te hace sentido, ¿lo revisamos juntos?",
+    "Hola [nombre_contacto]. Soy [nombre_ejecutivo] de Temikia. Colaborando con directivos de [giro_negocio], noto que pierden muchas inscripciones porque no logran dar seguimiento a los prospectos que preguntaron pero no se matricularon de inmediato. Otros sufren para responder dudas sobre planes de estudio en horarios fuera de servicio. No sé si estos escenarios apliquen a [nombre_negocio] o si la pérdida de alumnos se deba a otra razón. Si te suena familiar, ¿te interesaría ver cómo automatizamos esa recuperación de alumnos?",
+    "Qué tal, te escribe [nombre_ejecutivo]. Al conversar con institutos en [ciudad], me comparten que la validación de pagos, el envío de temarios y el agendamiento de exámenes de admisión satura a su equipo administrativo. En Temikia centralizamos todo esto mediante agentes conversacionales. Ignoro si tengan un reto similar en [nombre_negocio] hoy en día o si la carga operativa se concentre en otro proceso. Si es el caso, ¿están abiertos a explorar soluciones tecnológicas de este tipo?",
+    "Buen día [nombre_contacto]. Mi nombre es [nombre_ejecutivo] y trabajo en Temikia. Muchos centros de [giro_negocio] nos dicen que su principal problema es captar la atención de prospectos internacionales por diferencias de horario, perdiendo la conversión del primer contacto. No sé si en [nombre_negocio] este sea un cuello de botella o si la fricción se encuentre en otro frente. Si algo de esto hace eco, ¿tiene sentido que revisemos brevemente nuestra atención multilingüe 24/7?",
+    "Qué tal [nombre_contacto]. Te saluda [nombre_ejecutivo] de Temikia. Conversando con directivos del sector, me comentan que los procesos de reinscripción anual para alumnos actuales suelen saturar las líneas de atención por dudas repetitivas sobre costos, horarios y carga de documentos. Diseñamos asistentes virtuales que guían al estudiante paso a paso por [canal_preferido]. Ignoro si en [nombre_negocio] vivan este caos administrativo cada ciclo o si su reto principal hoy sea completamente distinto. ¿Te interesaría ver cómo agilizarlo?",
+    "Hola [nombre_contacto]. Soy [nombre_ejecutivo]. Analizando el sector de [giro_negocio] en [ciudad], notamos que la coordinación de visitas guiadas o asistencias a sus \"Open House\" consume decenas de llamadas manuales de confirmación que los padres terminan ignorando. En Temikia automatizamos la reserva de recorridos y el envío de recordatorios interactivos por [canal_o_red_social]. No sé si en [nombre_negocio] este proceso les reste eficiencia operativa o si la complejidad real esté en otra área. ¿Tiene sentido que lo revisemos?",
+    "Hola [nombre_contacto]. Mi nombre es [nombre_ejecutivo] de Temikia. Muchas instituciones nos comparten que el departamento de admisiones pierde días enteros persiguiendo a los aspirantes para que entreguen certificados o identificaciones faltantes, deteniendo el flujo de caja de las matrículas. Automatizamos embudos que detectan documentación incompleta y la solicitan de forma autónoma. Desconozco si en [nombre_negocio] tengan esta fuga de tiempo o si en mente tengan algún otro problema más urgente. ¿Te interesaría evaluar un caso de uso?",
+    "Qué tal [nombre_contacto]. Te escribe [nombre_ejecutivo]. Al trabajar con centros de [giro_negocio], vemos que difundir convocatorias para talleres extraescolares o cursos de actualización de manera manual reduce drásticamente el porcentaje de alumnos inscritos. Conectamos bases de datos para segmentar y enviar invitaciones personalizadas masivas sin riesgo de baneo. No sé si hoy la comunicación de su oferta complementaria sea un reto en [nombre_negocio] o si la prioridad actual sea otra. ¿Estarían abiertos a conocer la estrategia?",
+    "Buen día [nombre_contacto]. Soy [nombre_ejecutivo] de Temikia. Administradores de academias nos comentan que la validación manual de transferencias bancarias y la posterior liberación de accesos a plataformas educativas satura al área de finanzas. En Temikia sincronizamos pasarelas de pago y sistemas escolares en tiempo real. Ignoro si en [nombre_negocio] realicen esta conciliación a mano o si la fricción operativa se ubique en otro frente. Si hace eco contigo, ¿buscamos un espacio para platicarlo?"
+  ],
+  "Rehabilitación y Salud Mental": [
+    "Hola [nombre_contacto]. Soy [nombre_ejecutivo]. Varios especialistas de [giro_negocio] me comparten que su mayor preocupación es dejar sin respuesta a pacientes que buscan ayuda fuera del horario de consulta, ya que en esta área la empatía y la contención inmediata son vitales. Otros batallan con el hueco que dejan las cancelaciones de última hora sin reprogramar. No sé si esto les resulte un problema operativo hoy en [nombre_negocio] o si su principal desafío vaya por otro lado. Si es así, desde Temikia implementamos asistentes empáticos 24/7; ¿tendrías un par de minutos para platicarlo?",
+    "Buen día [nombre_contacto], mi nombre es [nombre_ejecutivo] de Temikia. Constantemente escucho a clínicas de [ciudad] decir que el tiempo que su personal invierte confirmando citas manualmente o dando indicaciones previas a los pacientes merma su productividad. Otros se frustran al no tener reportes claros de su ocupación y pacientes recurrentes. Desconozco si su desafío en [nombre_negocio] vaya por ahí o si la fricción operativa se encuentre en otro frente. Si es el caso, ¿les interesaría evaluar cómo automatizamos el agendamiento y confirmaciones directo a su calendario?",
+    "Hola [nombre_contacto]. Hablando con especialistas de [giro_negocio], me comentan que a menudo los pacientes buscan apoyo emocional o información de crisis a deshoras, y no tener respuesta inmediata los desmotiva a agendar. Soy [nombre_ejecutivo] de Temikia; desarrollamos asistentes empáticos y éticos para primer contacto. No sé si este sea un reto para [nombre_negocio] o si tengan en mente algún otro problema más urgente a resolver. ¿Te haría sentido conocer más al respecto?",
+    "Qué tal [nombre_contacto], soy [nombre_ejecutivo] de Temikia. Algunos terapeutas en [ciudad] nos dicen que el envío de cuestionarios previos, historiales y recordatorios manuales de sesiones les quita mucho tiempo de valor. Otros batallan para reprogramar a pacientes recurrentes. Ignoro si [nombre_negocio] enfrente estos procesos repetitivos o si el verdadero cuello de botella sea distinto. Si te resulta familiar, ¿te gustaría que te comparta algunas ideas de automatización de agendas?",
+    "Buen día. Te habla [nombre_ejecutivo]. En el sector de [giro_negocio], una gran frustración suele ser la alta tasa de abandono de tratamientos por falta de un seguimiento cálido entre sesiones. Desde Temikia integramos flujos que nutren al paciente automáticamente por [canal_preferido]. Desconozco si esto sea una prioridad a resolver para ustedes o si su enfoque esté puesto en un frente distinto. ¿Tendrías 5 minutos para evaluar si esto les suma valor?",
+    "Hola [nombre_contacto]. Te saluda [nombre_ejecutivo] de Temikia. Conversando con coordinadores de clínicas de [giro_negocio], mencionan que la gestión de talleres terapéuticos o sesiones grupales es compleja debido al control manual de aforos y cobros recurrentes. Desarrollamos sistemas que automatizan la inscripción, el pago seguro y el envío del enlace de acceso o ubicación de forma autónoma. Desconozco si en [nombre_negocio] ofrezcan estas modalidades o si el cuello de botella administrativo se encuentre en otra área. ¿Te interesaría conocer cómo lo resolvemos?",
+    "Qué tal [nombre_contacto]. Soy [nombre_ejecutivo]. Varios especialistas en [ciudad] me comentan que el tiempo invertido en emitir facturas, recibos de honorarios para aseguradoras o constancias de asistencia drena sus horas de consulta. En Temikia enlazamos las solicitudes del paciente directo al sistema de facturación sin intervención del terapeuta. No sé si la carga administrativa sea un cuello de botella actual en [nombre_negocio] o si su principal reto operativo sea otro. ¿Tendrías 5 minutos para revisar un ejemplo?",
+    "Hola [nombre_contacto]. Mi nombre es [nombre_ejecutivo] de Temikia. En el rubro de la salud mental, el primer contacto requiere un delicado triaje para asignar al especialista correcto según el motivo de consulta (ansiedad, terapia de pareja, infantil, etc.). Diseñamos asistentes conversacionales con IA que perfilan con total confidencialidad la necesidad del paciente antes de agendar. Ignoro si en [nombre_negocio] este filtro se haga hoy de manera manual o si la fricción con el paciente ocurra en otro frente. ¿Hará sentido explorar un demo?",
+    "Qué tal [nombre_contacto]. Te escribe [nombre_ejecutivo]. Muchos centros de [giro_negocio] nos reportan que la tasa de inasistencia disminuye drásticamente cuando el recordatorio por [canal_preferido] permite al paciente cancelar o reprogramar con un solo clic, permitiendo liberar la hora para alguien en espera. Construimos agendas dinámicas autogestionables. No estoy seguro si en [nombre_negocio] cuenten con esta tecnología o si su principal desafío de ausentismo tenga otra causa. ¿Te interesaría evaluar su viabilidad?",
+    "Buen día [nombre_contacto]. Soy [nombre_ejecutivo] de Temikia. Algunos terapeutas nos comentan que les gustaría automatizar el envío de escalas de evaluación o lecturas recomendadas entre sesiones, pero temen perder la calidez en el trato. Integramos flujos automatizados personalizados que respetan el tono profesional y empático de tu práctica a través de [canal_o_red_social]. Desconozco si la fidelización y seguimiento del paciente sea un área a mejorar hoy en [nombre_negocio] o si la prioridad actual esté en otro frente. ¿Platicamos?"
+  ],
+  "Restaurante": [
+    "Qué tal [nombre_contacto]. Te escribe [nombre_ejecutivo]. Conversando con dueños de restaurantes, me cuentan que a menudo pierden reservas de mesas grandes porque el personal está a tope y no contesta [canal_preferido] a tiempo. Algunos más se desgastan respondiendo dudas sobre el menú, precios o la ubicación diez veces al día. En Temikia resolvemos justo eso integrando respuestas a preguntas frecuentes con IA. No sé si alguno de estos sea un cuello de botella para [nombre_negocio] o si la fricción operativa esté en otro frente. Si lo es, ¿te interesaría ver un demo rápido?",
+    "Hola [nombre_contacto]. Mi nombre es [nombre_ejecutivo] de Temikia. En el rubro gastronómico, muchos gerentes me dicen que tienen miles de contactos de clientes pasados, pero no los aprovechan para enviarles campañas de reactivación y llenar el local en días de baja afluencia. Otros batallan para digitalizar su base de datos de comensales frecuentes. No sé si en [nombre_negocio] les pase igual o si su desafío principal hoy se encuentre en un frente distinto. Si les resulta familiar, ¿qué opinas de que revisemos algunas ideas de comunicación automática?",
+    "Hola [nombre_contacto]. Soy [nombre_ejecutivo] de Temikia. Conversando con gerentes gastronómicos, me cuentan que los fines de semana colapsan atendiendo pedidos para llevar por [canal_o_red_social] y se cometen errores de captura. Otros me dicen que su reto es captar reservas para eventos grandes. No sé si en [nombre_negocio] vivan algo similar o si en mente tengan algún otro problema más urgente a resolver. Si es así, ¿estarías abierto a ver cómo un agente levanta pedidos directo a su sistema?",
+    "Qué tal, te escribe [nombre_ejecutivo]. En Temikia notamos que muchos negocios de [giro_negocio] tienen bases de datos enormes de comensales, pero no las usan para enviar promociones personalizadas en días de baja afluencia. No estoy seguro de si la falta de reactivación de clientes sea un problema hoy en [nombre_negocio] o si su dolor de cabeza principal sea otro. Si te resuena, ¿tiene sentido que platiquemos sobre cómo automatizar campañas de fidelización en WhatsApp?",
+    "Buen día [nombre_contacto]. Mi nombre es [nombre_ejecutivo] de Temikia. Varios dueños de restaurantes en [ciudad] se quejan de que no logran extraer ni centralizar las opiniones o datos de Google Maps para mejorar su servicio o buscar alianzas corporativas. Construimos sistemas de scraping que hacen esto en segundos. Ignoro si tengan esta necesidad en [nombre_negocio] o si la prioridad del restaurante esté en un frente distinto. Si hace eco contigo, ¿te enviamos un caso de uso?",
+    "Hola [nombre_contacto]. Te escribe [nombre_ejecutivo] de Temikia. Hablando con gerentes de restaurantes en [ciudad], me comentan que las solicitudes de cotización para eventos privados o banquetes corporativos tardan días en responderse porque el menú y los precios varían constantemente, perdiendo cuentas de alto valor. En Temikia creamos cotizadores automatizados con IA que responden al instante por [canal_preferido]. Ignoro si en [nombre_negocio] este canal corporativo esté desatendido o si la fuga de banquetes se deba a otra causa. ¿Te gustaría ver cómo funciona?",
+    "Qué tal [nombre_contacto]. Soy [nombre_ejecutivo]. En el sector gastronómico, las horas pico del fin de semana suelen ahuyentar a comensales debido a las largas filas de espera físicas. Implementamos sistemas de lista de espera digital donde un agente de IA le avisa automáticamente por WhatsApp cuando su mesa está lista. No sé si la pérdida de clientes en puerta sea un problema en [nombre_negocio] o si la fricción operativa se encuentre en otro frente. Si te resuena, ¿evaluamos un caso de éxito?",
+    "Hola [nombre_contacto]. Mi nombre es [nombre_ejecutivo] de Temikia. Muchos operadores de [giro_negocio] nos dicen que capturar las preferencias de sus comensales (alergias, cumpleaños, mesa favorita) en una libreta no sirve para personalizar la experiencia a gran escala. Conectamos tus canales de reserva a un CRM gastronómico automático. Desconozco si en [nombre_negocio] busquen elevar el ticket promedio con esto o si en mente tengan un reto operativo más urgente. ¿Tiene sentido que lo hablemos?",
+    "Qué tal [nombre_contacto]. Te saluda [nombre_ejecutivo]. Notamos que muchos restaurantes sufren por malas reseñas en plataformas digitales debido a malentendidos operativos que pudieron resolverse en el momento. Diseñamos encuestas de satisfacción automáticas post-consumo que alertan al gerente en tiempo real si un cliente califica negativo, permitiendo contener la crisis antes de que llegue a internet. Ignoro si en [nombre_negocio] controlen su reputación de esta forma o si los malentendidos con clientes ocurran en otro frente. ¿Te interesaría conocer la herramienta?",
+    "Buen día [nombre_contacto]. Soy [nombre_ejecutivo] de Temikia. La rotación de personal y la coordinación de turnos de meseros y cocina suele quitarle horas de sueño a la administración. Desarrollamos flujos internos automatizados que notifican y confirman asistencias o cambios de rol del Staff directo a sus teléfonos. No sé si la comunicación interna sea un desafío operativo hoy en [nombre_negocio] o si la carga administrativa real esté en otra área. Si buscas reducir esa carga, ¿estás abierto a explorar una solución tecnológica?"
+  ],
+  "Salud y Clínica General": [
+    "Buen día [nombre_contacto]. Soy [nombre_ejecutivo] de Temikia. Últimamente hablo con administradores de clínicas y me dicen que su recepción suele saturarse intentando agendar consultas y validar horarios permitidos simultáneamente. Otros lidian con la carga de enviar instrucciones previas o derivar a los médicos correctos. No sé si estos escenarios apliquen a la realidad de [nombre_negocio] o si la fuga de pacientes ocurra por un motivo distinto. Si te suena familiar la fuga de pacientes por falta de respuesta, ¿tendrías un momento para que te comparta cómo lo solucionamos?",
+    "Hola [nombre_contacto]. Te saluda [nombre_ejecutivo]. Detectamos que en empresas de [giro_negocio], un dolor de cabeza frecuente es la falta de seguimiento a pacientes con tratamientos abiertos, o el tiempo perdido centralizando expedientes que llegan por diferentes vías. Construimos ecosistemas en Temikia para que esa información se organice integrándose con su base de datos o CRM en automático. Ignoro si este sea un problema en [nombre_negocio] o si la complejidad con los expedientes se encuentre en otro frente. Si hace sentido con su situación, ¿te enviamos un breve caso de éxito?",
+    "Hola [nombre_contacto], soy [nombre_ejecutivo]. Directores de clínicas me comparten que su recepción pierde horas haciendo \"triaje\" básico: averiguando síntomas por chat para derivar al especialista correcto. En Temikia diseñamos asistentes que perfilan al paciente automáticamente antes de agendar. No sé si en [nombre_negocio] tengan este cuello de botella operativo o si su desafío principal hoy vaya por otro lado. Si es el caso, ¿te interesaría ver un demo rápido de cómo funciona?",
+    "Qué tal [nombre_contacto]. Te saluda [nombre_ejecutivo] de Temikia. Hablando con administradores de [giro_negocio], su dolor de cabeza suele ser la entrega de resultados de laboratorio o notificaciones de rutinas que consumen mucho esfuerzo manual. Otros mencionan la falta de integración entre su software médico y WhatsApp. Desconozco si alguno sea su desafío actual o si en la mente tengan algún otro problema más urgente a resolver. ¿Estarías disponible la próxima semana para platicarlo?",
+    "Buen día. Mi nombre es [nombre_ejecutivo]. Trabajando con centros de salud en [ciudad], notamos que muchos pacientes cancelan a último minuto y el espacio se pierde porque no hay un sistema automático para alertar a la lista de espera. Con Temikia, ese espacio se reasigna sin intervención humana. No sé si esto les resulte familiar en [nombre_negocio] o si la fricción con la agenda se ubique en otro frente. Si es así, ¿tendrías un par de minutos para revisar nuestra solución?",
+    "Hola [nombre_contacto]. Te escribe [nombre_ejecutivo] de Temikia. Platicando con administradores de centros médicos, veo que coordinar consultas de telemedicina es un doble trabajo: validar el pago, generar el enlace de la videollamada y enviarlo manualmente con las indicaciones. En Temikia automatizamos este flujo completo enlazando su pasarela de pagos con su agenda digital. Desconozco si en [nombre_negocio] ofrezcan este servicio o si el cuello de botella real de la recepción esté en otra tarea. ¿Valdrá la pena revisarlo?",
+    "Qué tal [nombre_contacto]. Soy [nombre_ejecutivo]. Al colaborar con empresas de [giro_negocio], notamos que los pacientes recurrentes (como aquellos con padecimientos crónicos o chequeos anuales) se pierden por falta de un sistema que les recuerde reactivar sus estudios periódicos. Programamos alertas automatizadas basadas en el historial clínico del paciente. No sé si la retención de pacientes sea un cuello de botella hoy en [nombre_negocio] o si su prioridad actual se encuentre en otro frente. ¿Te interesaría ver cómo automatizar estos recordatorios?",
+    "Hola [nombre_contacto]. Mi nombre es [nombre_ejecutivo] de Temikia. Muchas clínicas que manejan convenios corporativos con empresas pierden mucho tiempo validando manualmente si los empleados vigentes entran en la cobertura de atención. Sincronizamos padrones de empresas aliadas con sistemas de recepción para una validación instantánea por [canal_preferido]. Ignoro si en [nombre_negocio] el sector B2B les genere fricción administrativa o si su principal reto operativo sea distinto. ¿Hará sentido explorar la solución?",
+    "Qué tal [nombre_contacto]. Te saluda [nombre_ejecutivo]. Un dolor frecuente en clínicas en [ciudad] es que los pacientes saturan las líneas telefónicas solo para preguntar si su receta médica ya está lista para surtirse o si sus análisis de laboratorio fueron liberados. Automatizamos consultas de estatus integradas a su software médico vía [canal_o_red_social]. No sé si en [nombre_negocio] vivan esta saturación en recepción o si los canales de consulta sufran de otro problema. ¿Te gustaría conocer el demo?",
+    "Buen día [nombre_contacto]. Soy [nombre_ejecutivo] de Temikia. La experiencia post-operatoria o de alta médica suele descuidarse por falta de tiempo del personal, omitiendo encuestas de seguimiento de calidad o control de síntomas básicos. Diseñamos flujos conversacionales automatizados que monitorean al paciente en su recuperación y alertan al médico si hay anomalías. Desconozco si en [nombre_negocio] prioricen automatizar este estándar de calidad o si tengan un desafío operativo más crítico. ¿Tendrías 5 minutos para evaluarlo?"
+  ],
+  "Servicios de imagen y cuidado personal": [
+    "Hola [nombre_contacto]. Habla [nombre_ejecutivo]. Muchos dueños de salones y spas en [ciudad] me confiesan que les frustra tener que interrumpir el servicio de un cliente para contestar [canal_o_red_social] y tratar de cuadrar una cita. Otros me dicen que su problema no es ese, sino los \"no-shows\" (inasistencias) que les dejan huecos sin rentabilidad. Desde Temikia solucionamos ambos retos integrando calendarios inteligentes. No sé si [nombre_negocio] esté pasando por algo de esto o si la fricción con la agenda se encuentre en otro frente, ¿tienen algún cuello de botella con la gestión de su agenda?",
+    "Qué tal [nombre_contacto], soy [nombre_ejecutivo] de Temikia. Conversando con especialistas de [giro_negocio], me comentan que batallan mucho para recuperar a clientes que vinieron una vez a un servicio y no volvieron por falta de seguimiento. Otros sufren para dar respuesta inmediata a las dudas sobre precios o políticas del negocio. No sé si alguno de estos escenarios sea su caso en [nombre_negocio] o si su desafío principal actual sea completamente distinto. Si algo de esto te resuena, ¿te gustaría evaluar cómo un agente de IA puede automatizar su reactivación por WhatsApp?",
+    "Hola [nombre_contacto]. Soy [nombre_ejecutivo] de Temikia. En el rubro de [giro_negocio], muchos dueños nos cuentan que pierden la oportunidad de vender productos adicionales (como tratamientos o cremas) porque olvidan ofrecerlos después de la cita. Implementamos seguimientos de venta cruzada automáticos por [canal_preferido]. Ignoro si hoy estén buscando subir su ticket promedio en [nombre_negocio] o si su prioridad comercial esté en otro frente. ¿Te hace sentido que lo hablemos?",
+    "Qué tal, te escribe [nombre_ejecutivo]. Varios especialistas de cuidado personal me dicen que las dudas repetitivas sobre cuánto dura un servicio o qué preparación previa requiere les quitan horas de trabajo productivo. En Temikia delegamos esto a un agente IA empático. No sé si en [nombre_negocio] la carga operativa en [canal_o_red_social] sea un problema o si en mente tengan un reto más urgente a resolver. Si te suena familiar, ¿te comparto cómo lo estamos resolviendo?",
+    "Buen día [nombre_contacto], soy [nombre_ejecutivo]. Conversando con clínicas estéticas y salones de [ciudad], me comparten que no logran fidelizar clientes para que vuelvan recurrentemente por falta de recordatorios sistematizados. Desde Temikia creamos flujos de reactivación automáticos. Desconozco si esta fuga de ingresos les pase en [nombre_negocio] o si la desconexión con los clientes ocurra en otro punto. Si algo de esto resuena, ¿están abiertos a explorar una herramienta para evitarlo?",
+    "Hola [nombre_contacto]. Te habla [nombre_ejecutivo] de Temikia. Muchos centros estéticos y spas en [ciudad] nos comparten que venden paquetes de varias sesiones (como depilación o masajes), pero el cliente olvida agendar sus citas subsecuentes, retrasando los resultados y la ocupación proyectada de la clínica. Automatizamos el seguimiento de saldos de paquetes por [canal_preferido] para forzar el agendamiento mensual. Ignoro si en [nombre_negocio] sufran este rezago de citas o si el verdadero cuello de botella operativo esté en otro lado. ¿Te interesaría ver cómo lo resolvemos?",
+    "Qué tal [nombre_contacto]. Soy [nombre_ejecutivo]. Conversando con salones especializados en eventos masivos (como bodas o graduaciones), me comentan lo caótico que es cotizar y coordinar agendas para grupos grandes que requieren múltiples servicios simultáneos. En Temikia estructuramos flujos de reserva grupal que asignan estilistas en automático según disponibilidad. No sé si este canal de eventos sea un dolor de cabeza en [nombre_negocio] o si la fricción logística se encuentre en otro frente. Si te resuena, ¿revisamos ideas?",
+    "Hola [nombre_contacto]. Mi nombre es [nombre_ejecutivo] de Temikia. En salones que operan bajo el modelo de renta de cabinas o porcentaje por estilista, conciliar las comisiones y los servicios atendidos por cada colaborador al final de la semana consume horas de Excel. Conectamos los registros del asistente conversacional directo a tableros financieros automatizados. Desconozco si en [nombre_negocio] este control interno sea lento o si la complejidad real de la operación radique en otra parte. ¿Te haría sentido optimizarlo?",
+    "Qué tal [nombre_contacto]. Te escribe [nombre_ejecutivo]. Noto que muchos negocios de [giro_negocio] lanzan promociones o tarjetas de regalo para fechas especiales, pero el proceso de validación y canje en sucursal genera cuellos de botella por falta de un sistema centralizado. Creamos cupones automatizados rastreables por WhatsApp. No estoy seguro si en [nombre_negocio] utilicen estas estrategias o si el desorden administrativo provenga de otro frente. ¿Estarían abiertos a ver una solución digital?",
+    "Buen día [nombre_contacto]. Soy [nombre_ejecutivo] de Temikia. Algunos tratamientos invasivos o avanzados (como microblading o peelings químicos) requieren cuidados rigurosos las primeras 72 horas. Enviar estas instrucciones a mano a cada cliente es inviable para tu equipo. Diseñamos flujos que, al marcar la cita como terminada, envían recomendaciones personalizadas e imágenes de cuidado de forma autónoma. Ignoro si en [nombre_negocio] busquen automatizar esta atención post-servicio o si tengan alguna otra prioridad más urgente. ¿Te interesa?"
+  ],
+  "Servicios dentales": [
+    "Hola [nombre_contacto]. Soy [nombre_ejecutivo] de Temikia. Los directores de clínicas dentales con los que converso suelen mencionar que su principal fuga de dinero son las inasistencias por falta de confirmación o recordatorios previos efectivos. Otros me dicen que el problema está en no poder dar seguimiento sistemático a presupuestos de tratamientos de alto valor. No sé si en [nombre_negocio] esto les resulte familiar o si la fricción se encuentre en otro frente. Si es así, ¿estarías abierto a escuchar cómo automatizamos este proceso desde el primer contacto?",
+    "Buen día [nombre_contacto]. Te escribe [nombre_ejecutivo]. Muchas clínicas de [giro_negocio] invierten en captación en [canal_o_red_social], pero me comparten que pierden a esos prospectos porque su equipo tarda mucho en responder y precotizar la primera valoración. En Temikia conectamos agentes que califican leads al instante y validan cupos disponibles. Ignoro si tengan este desafío de conversión en [nombre_negocio] o si el cuello de botella real esté en otro proceso, ¿tiene sentido que veamos brevemente si nuestra integración les suma valor?",
+    "Hola [nombre_contacto], te habla [nombre_ejecutivo]. Colaborando con clínicas dentales, escucho a menudo que el mayor reto es dar seguimiento a presupuestos de alto valor (como ortodoncia o implantes) a lo largo de los meses sin parecer desesperados. En Temikia diseñamos embudos de nutrición a la medida. No sé si [nombre_negocio] enfrente este desafío de conversión o si su reto principal hoy vaya por otro lado. Si es tu caso, ¿tiene sentido que veamos brevemente si podemos sumarles valor?",
+    "Qué tal [nombre_contacto]. Soy [nombre_ejecutivo] de Temikia. Algunos consultorios de [giro_negocio] invierten en publicidad en redes, pero los leads se enfrían porque no se les precalifica al instante para ver si son viables para un tratamiento. Conectamos asistentes que responden y filtran 24/7. Ignoro si este escenario operativo sea familiar en [nombre_negocio] o si tengan en mente un problema más urgente a resolver. Si hace eco contigo, ¿te enviamos un breve caso de éxito?",
+    "Buen día. Mi nombre es [nombre_ejecutivo]. Muchos odontólogos nos comentan que programar las limpiezas semestrales recurrentes depende de la memoria humana, perdiendo ingresos predecibles por falta de seguimiento. En Temikia automatizamos estos recordatorios conectando su base de datos a WhatsApp. No estoy seguro si en [nombre_negocio] tengan este problema resuelto o si la fuga de ingresos predecibles se deba a otra causa. Si no, ¿tendrías 5 minutos para platicar de nuestra solución?",
+    "Hola [nombre_contacto]. Te saluda [nombre_ejecutivo] de Temikia. Al platicar con directores de clínicas dentales, descubro que un gran dolor de cabeza es agendar citas de tratamientos complejos (como coronas o prótesis) antes de confirmar que el laboratorio externo entregó la pieza a tiempo, provocando cancelaciones penosas con el paciente. Sincronizamos el estatus de tus proveedores de laboratorio con tu agenda de WhatsApp. Desconozco si en [nombre_negocio] sufran este desajuste logístico o si la complicación con el laboratorio esté en otro frente. ¿Te gustaría evaluar cómo solucionarlo?",
+    "Qué tal [nombre_contacto]. Soy [nombre_ejecutivo]. Muchas clínicas de [giro_negocio] en [ciudad] tienen problemas para dar seguimiento a las pre-autorizaciones o aprobaciones de presupuestos con aseguradoras, dejando tratamientos pausados por semanas. En Temikia creamos alertas automatizadas que notifican tanto al paciente como al personal administrativo los estatus pendientes del seguro. No sé si la burocracia de los seguros afecte la conversión en [nombre_negocio] o si la prioridad actual de la clínica sea otra. ¿Hará sentido revisarlo?",
+    "Hola [nombre_contacto]. Mi nombre es [nombre_ejecutivo] de Temikia. Un reto común en consultorios odontológicos familiares es optimizar la agenda agrupando citas de miembros de la misma familia el mismo día (back-to-back), evitando huecos muertos. Automatizamos motores de reserva inteligentes que sugerensespacio contiguos para grupos familiares por [canal_preferido]. Ignoro si en [nombre_negocio] organicen sus jornadas de esta forma o si el problema de la agenda muerta provenga de otro lado. ¿Te interesaría conocer un demo?",
+    "Qué tal [nombre_contacto]. Te escribe [nombre_ejecutivo]. En el sector dental, las urgencias por dolor agudo ocurren a cualquier hora y perder esa llamada o mensaje significa que el paciente irá con la competencia. Desarrollamos flujos de triaje de emergencias con IA que determinan la gravedad y enlazan al dentista de guardia en automático. No estoy seguro si en [nombre_negocio] cuenten con un filtro de urgencias 24/7 o si la pérdida de pacientes ocurra por un motivo distinto. ¿Valdría la pena conocerlo?",
+    "Buen día [nombre_contacto]. Soy [nombre_ejecutivo] de Temikia. En clínicas que ofrecen ortodoncia con alineadores invisibles, monitorear que el paciente cambie de fase o asista a sus revisiones fotográficas periódicas requiere un seguimiento manual exhaustivo. Automatizamos embudos de cumplimiento de tratamiento vía [canal_o_red_social]. Desconozco si en [nombre_negocio] busquen escalar esto o si la fricción operativa se encuentre en otro frente. ¿Hablamos?"
+  ],
+  "Otros (Genérico)": [
+    "Qué tal [nombre_contacto]. Mi nombre es [nombre_ejecutivo] de Temikia. Hablando con algunos directivos comerciales, me comentan que uno de sus mayores dolores de cabeza es que su equipo pierde demasiadas horas buscando y filtrando bases de datos de prospectos en lugar de estar cerrando ventas. Otros me dicen que la fuga de leads ocurre por demoras al enviar cotizaciones formales. No sé si en [nombre_negocio] se identifiquen con alguno de estos problemas o si su desafío principal hoy sea distinto. Si es el caso, ¿tendrías 5 minutos para que platiquemos de cómo la IA lo resuelve mediante scraping y CRM automatizado?",
+    "Hola [nombre_contacto]. Soy [nombre_ejecutivo] de Temikia. Al conversar con gerentes en [ciudad], noto que una preocupación común es la falta de trazabilidad: tienen ventas y prospectos, pero los datos están tan dispersos que no pueden generar dashboards ejecutivos ni medir tiempos de respuesta sin un gran trabajo manual. Otros sienten que sus sistemas y bases de datos no se comunican entre sí. No sé si alguno de estos escenarios de desconexión te resulte familiar en [nombre_negocio] o si la fricción se encuentre en otro frente. ¿Te haría sentido revisar cómo orquestamos y conectamos todo esto vía automatizaciones?",
+    "Hola [nombre_contacto]. Soy [nombre_ejecutivo] de Temikia. Líderes del sector me dicen constantemente que su equipo comercial gasta más tiempo buscando datos y haciendo prospección manual en directorios que realmente cerrando ventas. Otros sufren por bases de datos desactualizadas. No sé si alguno de estos sea un cuello de botella en [nombre_negocio] o si tengan en mente algún otro problema más urgente a resolver. Si te resulta familiar, ¿te interesaría ver cómo automatizamos la captación de prospectos?",
+    "Buen día [nombre_contacto]. Mi nombre es [nombre_ejecutivo] de Temikia. Un problema que escucho mucho en empresas de su sector es la desconexión: tienen un software interno, cotizadores y WhatsApp, pero nada se comunica entre sí, requiriendo doble captura manual. Construimos ecosistemas que sincronizan todo en automático. Desconozco si esta carga administrativa exista en [nombre_negocio] o si la complejidad real de sus sistemas esté en otro frente. Si te resuena, ¿estarías disponible para que te muestre un ejemplo sin compromiso?",
+    "Hola [nombre_contacto]. Te saluda [nombre_ejecutivo] de Temikia. Hablando con directores operativos, me comentan que un gran reto es la velocidad de respuesta con los prospectos: si tardan más de 5 minutos en contestar un mensaje en [canal_o_red_social], la probabilidad de cierre cae un 80% porque el cliente ya le escribió a la competencia. En Temikia eliminamos esa ventana de abandono con respuestas e integraciones inmediatas operadas por IA. Ignoro si en [nombre_negocio] tengan medida su velocidad de respuesta o si el verdadero cuello de botella comercial esté en otra área. ¿Hará sentido revisar un ejemplo rápido?",
+    "Qué tal [nombre_contacto]. Soy [nombre_ejecutivo]. Analizando empresas en [ciudad], noto que un dolor administrativo constante es el \"re-trabajo\": capturar manualmente los datos que un cliente dejó en un formulario web hacia el CRM, y luego volverlos a escribir para generar la orden en el sistema interno o de facturación. Construimos flujos de integración que unifican tus plataformas para que la información viaje sola. No sé si la duplicidad de tareas sea una carga hoy en [nombre_negocio] o si su prioridad actual se ubique en otro frente. ¿Te interesaría ver cómo automatizarlo?",
+    "Hola [nombre_contacto]. Mi nombre es [nombre_ejecutivo] de Temikia. Al conversar con líderes comerciales, me comparten que el proceso de \"Onboarding\" o bienvenida de un nuevo cliente (recabar firmas de contratos, solicitar identificaciones, enviar correos de inicio) se vuelve lento y traba la operación inicial. En Temikia automatizamos la entrega y recolección de requisitos de apertura mediante flujos dinámicos en [canal_preferido]. Desconozco si en [nombre_negocio] este arranque de proyecto sea totalmente manual o si en mente tengan un reto operativo más crítico. ¿Valdrá la pena conocer una alternativa eficiente?",
+    "Qué tal [nombre_contacto]. Te escribe [nombre_ejecutivo]. Un problema frecuente en equipos de ventas en crecimiento es la asignación equitativa y oportuna de los prospectos que llegan por campañas digitales. Cuando la distribución de leads es manual, hay retrasos y disputas internas. Diseñamos sistemas de enrutamiento automatizado (Round Robin) que asignan el contacto al vendedor disponible en segundos según su carga de trabajo. Ignoro si la asignación de leads sea un desafío actual en [nombre_negocio] o si la fricción del equipo de ventas se encuentre en otro frente. ¿Estarían abiertos a ver cómo lo resolvemos?",
+    "Buen día [nombre_contacto]. Soy [nombre_ejecutivo] de Temikia. Muchas empresas medianas nos confiesan que sus equipos de atención al cliente consumen más del 60% de su jornada respondiendo consultas de soporte sumamente repetitivas (estatus de pedidos, horarios, coberturas, políticas de devolución), descuidando casos complejos o de retención de valor. Delegamos estas FAQ a agentes inteligentes conversacionales integrados a tus bases de datos. Desconozco si en [nombre_negocio] la carga de soporte esté saturando a tu personal o si el problema de retención responda a otro factor. ¿Te interesaría evaluar un demo sin compromiso?"
+  ]
+};
+
+// Map lead's business category (giro_nombre / estilo) to the standard templates categories
+const getGiroCategory = (giroName, estiloName) => {
+  const g = (giroName || estiloName || '').toLowerCase().trim();
+  if (!g) return "Otros (Genérico)";
+
+  if (g.includes('arte corporal') || g.includes('tatuaje') || g.includes('tattoo') || g.includes('perforacion') || g.includes('piercing')) {
+    return "Arte corporal y perforaciones";
+  }
+  if (g.includes('arte') || g.includes('galeria') || g.includes('artista') || g.includes('museo') || g.includes('pintura') || g.includes('escultura')) {
+    return "Arte";
+  }
+  if (g.includes('educa') || g.includes('escuela') || g.includes('colegio') || g.includes('universi') || g.includes('academia') || g.includes('curso') || g.includes('instituto') || g.includes('clases')) {
+    return "Educación";
+  }
+  if (g.includes('psico') || g.includes('salud mental') || g.includes('terapia') || g.includes('rehab') || g.includes('psiquia') || g.includes('terapeuta')) {
+    return "Rehabilitación y Salud Mental";
+  }
+  if (g.includes('restauran') || g.includes('comida') || g.includes('gastron') || g.includes('cafe') || g.includes('bar') || g.includes('cocina') || g.includes('gourmet') || g.includes('taqueria') || g.includes('bistro')) {
+    return "Restaurante";
+  }
+  if (g.includes('dental') || g.includes('dentista') || g.includes('odonto') || g.includes('ortodoncia')) {
+    return "Servicios dentales";
+  }
+  if (g.includes('estetic') || g.includes('salon') || g.includes('spa') || g.includes('barber') || g.includes('peluquer') || g.includes('imagen') || g.includes('cuidado personal') || g.includes('manicur') || g.includes('belleza')) {
+    return "Servicios de imagen y cuidado personal";
+  }
+  if (g.includes('salud') || g.includes('clinica') || g.includes('hospital') || g.includes('consultorio') || g.includes('medico') || g.includes('medicina') || g.includes('doctor') || g.includes('pediatra') || g.includes('ginec')) {
+    return "Salud y Clínica General";
+  }
+
+  return "Otros (Genérico)";
+};
+
+const LeadDetails = ({ leadId, user, onClose, onSaveSuccess }) => {
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -35,6 +178,7 @@ const LeadDetails = ({ leadId, onClose, onSaveSuccess }) => {
   const [miembros, setMiembros] = useState([]); // Team Members list
   const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'success' | 'error'
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // State for custom delete confirmation modal
+  const [selectedTemplateIndex, setSelectedTemplateIndex] = useState(0);
 
   // Editable Form states
   const [form, setForm] = useState({
@@ -92,6 +236,7 @@ const LeadDetails = ({ leadId, onClose, onSaveSuccess }) => {
   useEffect(() => {
     const fetchLeadDetail = async () => {
       if (!leadId) return;
+      setSelectedTemplateIndex(0); // Reset template selection for new lead
       try {
         setLoading(true);
         const res = await fetch(`/api/prospectos/${leadId}`);
@@ -731,30 +876,74 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
   const firstWa = waList.length > 0 ? waList[0] : '';
   const cleanWa = firstWa ? firstWa.replace(/[^\d+]/g, '') : '';
 
-  // Generate generic, brief conversation-opening message for WhatsApp
-  const getWhatsAppMessage = () => {
-    const trimmedName = form.contacto_nombre ? form.contacto_nombre.trim() : '';
-    const firstName = trimmedName ? trimmedName.split(/\s+/)[0] : '';
-    const greeting = firstName ? `Hola ${firstName}, espero que te encuentres muy bien.` : 'Hola, espero que te encuentres muy bien.';
+  // Generate a personalized, highly contextual B2B conversation-opening message from the 20 templates
+  const getSocialChannelName = () => {
+    const website = (form.sitio_web || '').toLowerCase();
+    const notes = (form.notas || '').toLowerCase();
+    const ficha = (lead?.ficha_prospeccion || '').toLowerCase();
     
-    const businessName = form.nombre ? form.nombre.trim() : '';
-    const city = form.ciudad ? form.ciudad.trim() : '';
-    const giro = lead.giro_nombre || form.estilo || '';
+    const hasFb = website.includes('facebook') || website.includes('fb.com') || notes.includes('facebook') || notes.includes('fb.com') || ficha.includes('facebook') || ficha.includes('fb.com');
+    const hasIg = website.includes('instagram') || website.includes('ig.me') || notes.includes('instagram') || notes.includes('ig.me') || ficha.includes('instagram') || ficha.includes('ig.me');
     
-    let context = '';
-    if (businessName) {
-      context = ` en relación a ${businessName}`;
-      if (city && giro) {
-        context += ` (del giro ${giro.toLowerCase()} en ${city})`;
-      } else if (city) {
-        context += ` en ${city}`;
-      } else if (giro) {
-        context += ` (giro ${giro.toLowerCase()})`;
-      }
+    if (hasFb && hasIg) return "redes sociales";
+    if (hasFb) return "Facebook";
+    if (hasIg) return "Instagram";
+    return "redes";
+  };
+
+  const compileWhatsAppMessage = (templateText) => {
+    if (!templateText) return '';
+    const contactName = form.contacto_nombre ? form.contacto_nombre.trim() : '';
+    const executiveName = user?.nombreCompleto || user?.nombre_completo || user?.nombre_corto || user?.nombre || 'asesor de Temikia';
+    const city = form.ciudad ? form.ciudad.trim() : 'tu localidad';
+    const businessName = form.nombre ? form.nombre.trim() : 'tu negocio';
+    const giro = lead?.giro_nombre || form.estilo || 'tu sector';
+    
+    const canalPreferidoTerm = 
+      form.canal_preferido === 'whatsapp' ? 'WhatsApp' : 
+      form.canal_preferido === 'correo' ? 'correo electrónico' : 
+      form.canal_preferido === 'telefono' ? 'llamada telefónica' : 'WhatsApp';
+      
+    let msg = templateText;
+    msg = msg.replace(/\[nombre_contacto\]/gi, contactName);
+    msg = msg.replace(/\[nombre_ejecutivo\]/gi, executiveName);
+    msg = msg.replace(/\[ciudad\]/gi, city);
+    msg = msg.replace(/\[nombre_negocio\]/gi, businessName);
+    msg = msg.replace(/\[canal_o_red_social\]/gi, getSocialChannelName());
+    msg = msg.replace(/\[canal_preferido\]/gi, canalPreferidoTerm);
+    msg = msg.replace(/\[giro_negocio\]/gi, giro);
+    
+    // Fallback cleanup if contactName is empty
+    if (!contactName) {
+      msg = msg
+        .replace(/Hola\s+\[nombre_contacto\]\s*,\s*/gi, 'Hola, ')
+        .replace(/Hola\s+\[nombre_contacto\]\s*\.\s*/gi, 'Hola. ')
+        .replace(/Hola\s+\[nombre_contacto\]\s*!\s*/gi, 'Hola! ')
+        .replace(/Qué tal\s+\[nombre_contacto\]\s*,\s*/gi, 'Qué tal, ')
+        .replace(/Qué tal\s+\[nombre_contacto\]\s*\.\s*/gi, 'Qué tal. ')
+        .replace(/Buen día\s+\[nombre_contacto\]\s*,\s*/gi, 'Buen día, ')
+        .replace(/Buen día\s+\[nombre_contacto\]\s*\.\s*/gi, 'Buen día. ')
+        .replace(/,\s*\[nombre_contacto\]/gi, '')
+        .replace(/\[nombre_contacto\]\s*,/gi, '')
+        .replace(/\[nombre_contacto\]/gi, '')
+        .replace(/Hola\s*,\s*soy/gi, 'Hola, soy')
+        .replace(/Hola\s*,\s*¿/gi, 'Hola, ¿')
+        .replace(/Hola\s*,\s*¡/gi, 'Hola, ¡');
     }
     
-    const message = `${greeting} Te contacto${context} para hacerte una consulta muy breve. ¿Es este el medio adecuado para platicar? Saludos.`;
-    return encodeURIComponent(message);
+    return msg;
+  };
+
+  const getWhatsAppMessage = () => {
+    const giroCategory = getGiroCategory(lead?.giro_nombre, form.estilo);
+    const templatesForGiro = WHATSAPP_TEMPLATES[giroCategory] || WHATSAPP_TEMPLATES["Otros (Genérico)"];
+    const selectedTemplate = templatesForGiro[selectedTemplateIndex] || templatesForGiro[0] || '';
+    
+    let compiled = compileWhatsAppMessage(selectedTemplate);
+    // Convert bold markdown (**) to WhatsApp bold format (*)
+    compiled = compiled.replace(/\*\*/g, '*');
+    
+    return encodeURIComponent(compiled);
   };
 
   // Google Maps embed resolver using place_url (extracts query parameter to bypass X-Frame blocking)
@@ -1033,6 +1222,65 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
                       <MessageSquare size={16} style={{ color: 'var(--color-success)' }} />
                     </a>
                   ) : null}
+                </div>
+
+                {/* Selector de Plantilla WhatsApp */}
+                <div style={{ 
+                  marginTop: '10px', 
+                  padding: '12px',
+                  borderRadius: '12px', 
+                  background: 'rgba(255, 255, 255, 0.02)', 
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.05)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span className="property-label" style={{ fontSize: '11px', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Plantilla ({getGiroCategory(lead?.giro_nombre, form.estilo)})
+                    </span>
+                    <span style={{ fontSize: '9px', color: 'var(--color-success)', fontWeight: '600', padding: '2px 6px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)' }}>
+                      Reemplazo Inteligente
+                    </span>
+                  </div>
+                  
+                  <select 
+                    value={selectedTemplateIndex} 
+                    onChange={(e) => setSelectedTemplateIndex(Number(e.target.value))} 
+                    className="property-input"
+                    style={{ 
+                      width: '100%', 
+                      fontSize: '12.5px', 
+                      padding: '6px 10px', 
+                      height: 'auto',
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                      borderColor: 'rgba(255, 255, 255, 0.12)'
+                    }}
+                  >
+                    {(WHATSAPP_TEMPLATES[getGiroCategory(lead?.giro_nombre, form.estilo)] || WHATSAPP_TEMPLATES["Otros (Genérico)"]).map((tmpl, idx) => (
+                      <option key={idx} value={idx}>
+                        Mensaje #{idx + 1}: {tmpl.substring(0, 48).trim()}...
+                      </option>
+                    ))}
+                  </select>
+
+                  <div style={{ 
+                    marginTop: '8px', 
+                    fontSize: '11.5px', 
+                    color: 'var(--text-secondary)',
+                    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    borderLeft: '2px solid var(--color-success)',
+                    maxHeight: '120px',
+                    overflowY: 'auto',
+                    fontStyle: 'italic',
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: '1.45'
+                  }}>
+                    {compileWhatsAppMessage(
+                      (WHATSAPP_TEMPLATES[getGiroCategory(lead?.giro_nombre, form.estilo)] || WHATSAPP_TEMPLATES["Otros (Genérico)"])[selectedTemplateIndex] || ''
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

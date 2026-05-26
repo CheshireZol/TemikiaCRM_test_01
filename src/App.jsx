@@ -190,6 +190,7 @@ function App() {
       {selectedLeadId && (
         <LeadDetails 
           leadId={selectedLeadId} 
+          user={user}
           onClose={handleCloseDetails} 
           onSaveSuccess={handleSaveSuccess} 
         />
