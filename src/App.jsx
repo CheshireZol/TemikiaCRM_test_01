@@ -9,6 +9,7 @@ import LeadDetails from './components/LeadDetails.jsx';
 import NewLeadModal from './components/NewLeadModal.jsx';
 import Login from './components/Login.jsx';
 import Profile from './components/Profile.jsx';
+import Equipo from './components/Equipo.jsx';
 import { RefreshCw } from 'lucide-react';
 
 function App() {
@@ -112,6 +113,8 @@ function App() {
             onLeadClick={handleLeadClick} 
           />
         );
+      case 'equipo':
+        return <Equipo user={user} onLeadClick={handleLeadClick} />;
       case 'profile':
         return <Profile user={user} onUserUpdate={handleLoginSuccess} onLogout={handleLogout} />;
       default:

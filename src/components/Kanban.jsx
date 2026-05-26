@@ -23,7 +23,7 @@ const KANBAN_STRUCTURE = [
     color: '#3B82F6', // Blue
     bgColor: 'rgba(59, 130, 246, 0.04)',
     stages: [
-      { id: 'nuevo', label: 'Nuevo Lead', desc: 'Esperando asignación o primer disparo de bot.', color: '#3B82F6' },
+      { id: 'nuevo', label: 'Nuevo', desc: 'Esperando asignación o primer disparo de bot.', color: '#3B82F6' },
       { id: 'proceso_contacto', label: 'En Proceso de Contacto', desc: 'Intentos de comunicación activos.', color: '#60A5FA' }
     ]
   },

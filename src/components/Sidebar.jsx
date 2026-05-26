@@ -9,7 +9,8 @@ import {
   Sun,
   Moon,
   LogOut,
-  User
+  User,
+  Users
 } from 'lucide-react';
 
 const Sidebar = ({ 
@@ -29,6 +30,7 @@ const Sidebar = ({
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'kanban', label: 'Pipeline Kanban', icon: KanbanSquare },
     { id: 'list', label: 'Lista de Leads', icon: TableProperties },
+    { id: 'equipo', label: 'Equipo', icon: Users },
     { id: 'ai', label: 'Asistente IA', icon: Cpu },
     { id: 'profile', label: 'Mi Perfil', icon: User }
   ];

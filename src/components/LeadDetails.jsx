@@ -897,7 +897,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
               <div className="property-item">
                 <label className="property-label">Estatus del Pipeline</label>
                 <select name="estatus" value={form.estatus} onChange={handleChange} className="property-input">
-                  <option value="nuevo">Nuevo Lead</option>
+                  <option value="nuevo">Nuevo</option>
                   <option value="proceso_contacto">En Proceso de Contacto</option>
                   <option value="contactado">Contactado</option>
                   <option value="calificado">Calificado</option>

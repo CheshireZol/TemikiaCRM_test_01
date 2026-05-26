@@ -160,7 +160,8 @@ pool.connect((err, client, release) => {
     // Auto-run schema migrations on startup
     pool.query(`
       ALTER TABLE temikia_crm.miembros_equipo 
-      ADD COLUMN IF NOT EXISTS foto_url text;
+      ADD COLUMN IF NOT EXISTS foto_url text,
+      ADD COLUMN IF NOT EXISTS intereses text;
 
       ALTER TABLE temikia_crm.miembros_login 
       ADD COLUMN IF NOT EXISTS codigo_2fa VARCHAR(6),
@@ -226,6 +227,62 @@ app.get('/api/miembros', async (req, res) => {
   } catch (error) {
     console.error('Error fetching team members list:', error);
     res.status(500).json({ error: 'Failed to fetch team members.' });
+  }
+});
+
+// 1.6 GET /api/equipo - Fetch all active team members with aggregated lead metrics
+app.get('/api/equipo', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        me.miembro_id, me.nombre_completo, me.nombre_corto, me.telefono, me.email, 
+        me.pais, me.ciudad, me.cargo, me.foto_url, me.notas, me.activo, me.intereses,
+        COUNT(pn.id) as total_leads,
+        COUNT(CASE WHEN pn.estatus = 'ganado' THEN 1 END) as leads_ganados,
+        COUNT(CASE WHEN pn.estatus = 'perdido' THEN 1 END) as leads_perdidos,
+        COUNT(CASE WHEN pn.estatus NOT IN ('ganado', 'perdido') THEN 1 END) as leads_activos,
+        ROUND(COALESCE(AVG(pn.lead_score), 0)) as avg_lead_score
+      FROM temikia_crm.miembros_equipo me
+      LEFT JOIN temikia_crm.prospectos_negocios pn ON me.miembro_id = pn.miembro_id
+      WHERE me.activo = true
+      GROUP BY me.miembro_id, me.nombre_completo, me.nombre_corto, me.telefono, 
+               me.email, me.pais, me.ciudad, me.cargo, me.foto_url, me.notas, 
+               me.activo, me.intereses
+      ORDER BY me.nombre_completo
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching team stats:', error);
+    res.status(500).json({ error: 'Failed to fetch team dashboard.' });
+  }
+});
+
+// 1.7 PUT /api/equipo/:miembroId/intereses - Update interests for a team member
+app.put('/api/equipo/:miembroId/intereses', async (req, res) => {
+  try {
+    const { miembroId } = req.params;
+    const { intereses } = req.body;
+
+    const query = `
+      UPDATE temikia_crm.miembros_equipo
+      SET intereses = $1, updated_at = NOW()
+      WHERE miembro_id = $2
+      RETURNING *
+    `;
+    const result = await pool.query(query, [intereses || null, miembroId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Miembro no encontrado.' });
+    }
+
+    res.json({
+      message: 'Intereses actualizados exitosamente.',
+      profile: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating member interests:', error);
+    res.status(500).json({ error: 'Failed to update interests.' });
   }
 });
 

@@ -14,7 +14,7 @@ import {
 import { parseStringArray, formatDate } from '../utils.js';
 
 const statusLabels = {
-  nuevo: "Nuevo Lead",
+  nuevo: "Nuevo",
   contactado: "Contactado",
   calificado: "Calificado (IA)",
   propuesta: "Propuesta",
