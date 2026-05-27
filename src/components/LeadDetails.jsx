@@ -438,18 +438,34 @@ const LeadDetails = ({ leadId, user, onClose, onSaveSuccess }) => {
     return pool[randomIndex];
   };
 
+  // Generate a random dynamic B2B business contact sentence
+  const getBusinessContactSentence = (businessName) => {
+    const cleanBusiness = businessName ? businessName.trim() : 'su negocio';
+    const pool = [
+      `Tengo el gusto de comunicarme con el equipo de ${cleanBusiness}.`,
+      `Me pongo en contacto con el equipo de ${cleanBusiness}.`,
+      `Un gusto saludar al equipo de ${cleanBusiness}.`,
+      `Es un placer comunicarme con el equipo de ${cleanBusiness}.`,
+      `Qué gusto ponerme en contacto con el equipo de ${cleanBusiness}.`
+    ];
+    const randomIndex = Math.floor(Math.random() * pool.length);
+    return pool[randomIndex];
+  };
+
   // Update Template #0 dynamically when the lead is changed or edited
   useEffect(() => {
     if (lead?.id) {
       const contactName = form.contacto_nombre ? form.contacto_nombre.trim() : '';
       const executiveName = user?.nombreCompleto || user?.nombre_completo || user?.nombre_corto || user?.nombre || 'asesor de Temikia';
+      const businessName = form.nombre ? form.nombre.trim() : '';
       
       const greeting = getGreeting(contactName);
       const presentation = getPresentation(executiveName);
+      const businessSentence = getBusinessContactSentence(businessName);
       
-      setDynamicTemplate0(`${greeting} ${presentation}`);
+      setDynamicTemplate0(`${greeting} ${presentation} ${businessSentence}`);
     }
-  }, [lead?.id, form.contacto_nombre, user]);
+  }, [lead?.id, form.contacto_nombre, form.nombre, user]);
 
   const getTemplatesList = () => {
     const giroCategory = getGiroCategory(lead?.giro_nombre, form.estilo);
