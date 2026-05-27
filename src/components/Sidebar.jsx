@@ -45,7 +45,15 @@ const Sidebar = ({
 
   return (
     <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isSidebarOpen ? 'open' : ''}`}>
-      <div className="sidebar-header" style={{ padding: isCollapsed ? '16px 10px' : '20px 20px', display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'flex-start', gap: '10px' }}>
+      <div className="sidebar-header" style={{ 
+        height: 'var(--header-height)',
+        padding: isCollapsed ? '0 16px' : '0 24px', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: isCollapsed ? 'center' : 'flex-start', 
+        gap: '10px',
+        boxSizing: 'border-box'
+      }}>
         <img 
           src="/logo.png" 
           alt="Temikia Logo" 

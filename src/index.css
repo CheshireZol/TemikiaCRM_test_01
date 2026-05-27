@@ -178,13 +178,15 @@ body {
 }
 
 .sidebar-header {
-  padding: 20px 24px;
+  height: var(--header-height);
+  padding: 0 24px;
   display: flex;
   align-items: center;
   gap: 12px;
   border-bottom: 1px solid #1E293B;
   overflow: hidden;
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .sidebar-logo {
@@ -208,9 +210,10 @@ body {
 
 .sidebar-nav {
   flex: 1;
-  padding: 20px 12px;
+  padding: 20px 16px;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 6px;
 }
 
@@ -221,13 +224,16 @@ body {
   padding: 10px 14px;
   color: #94A3B8;
   text-decoration: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 500;
   transition: all var(--transition-fast);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .sidebar-link:hover {
@@ -303,11 +309,20 @@ body {
   padding: 0 24px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   position: sticky;
   top: 0;
   z-index: 90;
   transition: background-color var(--transition-normal), border-color var(--transition-normal);
+}
+
+.header-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .header-left {
@@ -508,15 +523,15 @@ body {
    METRICS & DASHBOARD
    ========================================================================== */
 .dashboard-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 24px;
 }
 
 .kpi-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 20px;
+  gap: 24px;
 }
 
 .kpi-card {

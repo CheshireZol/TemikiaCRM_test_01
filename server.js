@@ -3,6 +3,7 @@ import pg from 'pg';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import nodemailer from 'nodemailer';
@@ -109,6 +110,51 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+// Helper: Recursively sanitize input strings to prevent Stored XSS
+function sanitizeInput(val, keyName = '') {
+  if (typeof val === 'string') {
+    // Exclude image data strings, URLs, and known safe fields
+    if (
+      keyName.toLowerCase().includes('foto') || 
+      keyName.toLowerCase().includes('url') || 
+      keyName.toLowerCase().includes('web') || 
+      val.startsWith('data:image/') ||
+      val.startsWith('http://') ||
+      val.startsWith('https://')
+    ) {
+      return val;
+    }
+    return val
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;')
+      .replace(/\//g, '&#x2F;');
+  }
+  if (Array.isArray(val)) {
+    return val.map(item => sanitizeInput(item, keyName));
+  }
+  if (typeof val === 'object' && val !== null) {
+    const clean = {};
+    for (const key in val) {
+      clean[key] = sanitizeInput(val[key], key);
+    }
+    return clean;
+  }
+  return val;
+}
+
+// Middleware: Sanitize all request body fields before route handling
+function sanitizeRequestBody(req, res, next) {
+  if (req.body) {
+    req.body = sanitizeInput(req.body);
+  }
+  next();
+}
+
+app.use(sanitizeRequestBody);
+
 // Rate limiter for authentication routes
 const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -118,6 +164,34 @@ const authRateLimiter = rateLimit({
 
 app.use('/api/auth/login', authRateLimiter);
 app.use('/api/auth/verify-2fa', authRateLimiter);
+
+// Middleware: Authenticate requests using JWT tokens
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Acceso denegado: Token de sesión ausente.' });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET || 'temikia-secret-key-super-secure', (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Sesión expirada o inválida. Por favor inicie sesión nuevamente.' });
+    }
+    req.user = user;
+    next();
+  });
+}
+
+// Middleware: Authorize requests based on user roles (RBAC)
+function requireRole(allowedRoles) {
+  return (req, res, next) => {
+    if (!req.user || !allowedRoles.includes(req.user.rol)) {
+      return res.status(403).json({ error: 'Permiso denegado: Acción no permitida para su nivel de acceso.' });
+    }
+    next();
+  };
+}
 
 // SMTP Transporter using Hostinger secure settings
 const transporter = nodemailer.createTransport({
@@ -209,7 +283,7 @@ const toPgJsonb = (val) => {
 // ==========================================
 
 // 1. GET /api/giros - Lookup list of all business giros from temikia_crm.giros_negocios
-app.get('/api/giros', async (req, res) => {
+app.get('/api/giros', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query('SELECT id, giro FROM temikia_crm.giros_negocios WHERE giro IS NOT NULL AND giro != \'\' ORDER BY giro');
     res.json(result.rows);
@@ -220,7 +294,7 @@ app.get('/api/giros', async (req, res) => {
 });
 
 // 1.5 GET /api/miembros - Lookup list of all team members from temikia_crm.miembros_equipo
-app.get('/api/miembros', async (req, res) => {
+app.get('/api/miembros', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query('SELECT miembro_id, nombre_completo, nombre_corto FROM temikia_crm.miembros_equipo ORDER BY nombre_completo');
     res.json(result.rows);
@@ -231,7 +305,7 @@ app.get('/api/miembros', async (req, res) => {
 });
 
 // 1.6 GET /api/equipo - Fetch all active team members with aggregated lead metrics
-app.get('/api/equipo', async (req, res) => {
+app.get('/api/equipo', authenticateToken, async (req, res) => {
   try {
     const query = `
       SELECT 
@@ -259,7 +333,7 @@ app.get('/api/equipo', async (req, res) => {
 });
 
 // 1.7 PUT /api/equipo/:miembroId/intereses - Update interests for a team member
-app.put('/api/equipo/:miembroId/intereses', async (req, res) => {
+app.put('/api/equipo/:miembroId/intereses', authenticateToken, async (req, res) => {
   try {
     const { miembroId } = req.params;
     const { intereses } = req.body;
@@ -287,7 +361,7 @@ app.put('/api/equipo/:miembroId/intereses', async (req, res) => {
 });
 
 // 2. GET /api/kpis - Aggregate statistics for the main Dashboard (with dynamic filters for refining)
-app.get('/api/kpis', async (req, res) => {
+app.get('/api/kpis', authenticateToken, async (req, res) => {
   try {
     const { pais, giro, owner, miembro_id } = req.query;
 
@@ -401,7 +475,7 @@ app.get('/api/kpis', async (req, res) => {
 });
 
 // 3. GET /api/filtros - Dynamic filter values directly populated from active database contents (Faceted Search)
-app.get('/api/filtros', async (req, res) => {
+app.get('/api/filtros', authenticateToken, async (req, res) => {
   try {
     const {
       estatus,
@@ -503,7 +577,7 @@ app.get('/api/filtros', async (req, res) => {
 });
 
 // 4. GET /api/prospectos - Get list of leads with server-side filters, search, and pagination (LEFT JOINed with giros_negocios)
-app.get('/api/prospectos', async (req, res) => {
+app.get('/api/prospectos', authenticateToken, async (req, res) => {
   try {
     const {
       estatus,
@@ -620,7 +694,7 @@ app.get('/api/prospectos', async (req, res) => {
 });
 
 // 5. GET /api/prospectos/:id - Get a single prospect in full detail (LEFT JOINed)
-app.get('/api/prospectos/:id', async (req, res) => {
+app.get('/api/prospectos/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const query = `
@@ -647,7 +721,7 @@ app.get('/api/prospectos/:id', async (req, res) => {
 });
 
 // 6. PUT /api/prospectos/:id/estatus - Fast update for Kanban stage drag-and-drop
-app.put('/api/prospectos/:id/estatus', async (req, res) => {
+app.put('/api/prospectos/:id/estatus', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { estatus } = req.body;
@@ -680,7 +754,7 @@ app.put('/api/prospectos/:id/estatus', async (req, res) => {
 });
 
 // PUT /api/prospectos/:id/prioridad - Fast update for priority
-app.put('/api/prospectos/:id/prioridad', async (req, res) => {
+app.put('/api/prospectos/:id/prioridad', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { prioridad } = req.body;
@@ -713,7 +787,7 @@ app.put('/api/prospectos/:id/prioridad', async (req, res) => {
 });
 
 // PUT /api/prospectos/:id/score - Fast update for AI lead score
-app.put('/api/prospectos/:id/score', async (req, res) => {
+app.put('/api/prospectos/:id/score', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { lead_score } = req.body;
@@ -746,7 +820,7 @@ app.put('/api/prospectos/:id/score', async (req, res) => {
 });
 
 // PUT /api/prospectos/:id/asistente-ia - Fast update for AI Assistant flag
-app.put('/api/prospectos/:id/asistente-ia', async (req, res) => {
+app.put('/api/prospectos/:id/asistente-ia', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { asistente_ia_activo } = req.body;
@@ -779,7 +853,7 @@ app.put('/api/prospectos/:id/asistente-ia', async (req, res) => {
 });
 
 // 7. PUT /api/prospectos/:id - Update complete details of a single lead
-app.put('/api/prospectos/:id', async (req, res) => {
+app.put('/api/prospectos/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -890,7 +964,7 @@ app.put('/api/prospectos/:id', async (req, res) => {
 });
 
 // 8. POST /api/prospectos - Create new prospect manual input
-app.post('/api/prospectos', async (req, res) => {
+app.post('/api/prospectos', authenticateToken, async (req, res) => {
   try {
     const {
       nombre,
@@ -969,7 +1043,7 @@ app.post('/api/prospectos', async (req, res) => {
 });
 
 // 9. DELETE /api/prospectos/:id - Delete a prospect record
-app.delete('/api/prospectos/:id', async (req, res) => {
+app.delete('/api/prospectos/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
@@ -1350,12 +1424,19 @@ app.post('/api/auth/verify-2fa', async (req, res) => {
       detalle: 'Inicio de sesión completado satisfactoriamente mediante verificación 2FA'
     });
 
+    const token = jwt.sign(
+      { loginId: user.login_id, miembroId: user.miembro_id, rol: user.rol_login },
+      process.env.JWT_SECRET || 'temikia-secret-key-super-secure',
+      { expiresIn: '8h' }
+    );
+
     res.json({
       user: {
         loginId: user.login_id,
         miembroId: user.miembro_id,
         email: user.email_login,
         rol: user.rol_login,
+        token,
         nombreCompleto: user.nombre_completo || user.nombre_corto || 'Miembro',
         nombreCorto: user.nombre_corto || 'Miembro',
         telefono: user.telefono || '',
@@ -1458,6 +1539,12 @@ app.post('/api/auth/change-password', async (req, res) => {
       detalle: 'Contraseña del usuario actualizada exitosamente. Flag requiere_cambio_password desactivado.'
     });
 
+    const token = jwt.sign(
+      { loginId: user.login_id, miembroId: user.miembro_id, rol: user.rol_login },
+      process.env.JWT_SECRET || 'temikia-secret-key-super-secure',
+      { expiresIn: '8h' }
+    );
+
     res.json({
       success: true,
       message: '¡Excelente! Contraseña actualizada con éxito corporativo.',
@@ -1466,6 +1553,7 @@ app.post('/api/auth/change-password', async (req, res) => {
         miembroId: user.miembro_id,
         email: user.email_login,
         rol: user.rol_login,
+        token,
         nombreCompleto: user.nombre_completo || user.nombre_corto || 'Miembro',
         nombreCorto: user.nombre_corto || 'Miembro',
         telefono: user.telefono || '',
@@ -1482,7 +1570,7 @@ app.post('/api/auth/change-password', async (req, res) => {
 });
 
 // 12. GET /api/auth/profile/:miembroId - Fetch team member profile details from DB
-app.get('/api/auth/profile/:miembroId', async (req, res) => {
+app.get('/api/auth/profile/:miembroId', authenticateToken, async (req, res) => {
   try {
     const { miembroId } = req.params;
     const result = await pool.query(
@@ -1502,7 +1590,7 @@ app.get('/api/auth/profile/:miembroId', async (req, res) => {
 });
 
 // 13. PUT /api/auth/profile/:miembroId - Update team member profile details, including base64 foto_url
-app.put('/api/auth/profile/:miembroId', async (req, res) => {
+app.put('/api/auth/profile/:miembroId', authenticateToken, async (req, res) => {
   try {
     const { miembroId } = req.params;
     const { nombre_completo, nombre_corto, telefono, pais, ciudad, cargo, foto_url, notas } = req.body;

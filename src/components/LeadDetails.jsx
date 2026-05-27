@@ -327,6 +327,7 @@ const LeadDetails = ({ leadId, user, onClose, onSaveSuccess }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // State for custom delete confirmation modal
   const [selectedTemplateIndex, setSelectedTemplateIndex] = useState(0);
   const [hasWebsiteError, setHasWebsiteError] = useState(false);
+  const [dynamicTemplate0, setDynamicTemplate0] = useState('');
 
   // Editable Form states
   const [form, setForm] = useState({
@@ -380,6 +381,81 @@ const LeadDetails = ({ leadId, user, onClose, onSaveSuccess }) => {
     fetchGiros();
     fetchMiembros();
   }, []);
+
+  // Helper to determine the local hour of the business using their time zone
+  const getLocalHour = () => {
+    try {
+      const tz = user?.zonaHoraria || 'America/Mexico_City';
+      const formatter = new Intl.DateTimeFormat('es-MX', {
+        timeZone: tz,
+        hour: 'numeric',
+        hour12: false
+      });
+      return parseInt(formatter.format(new Date()), 10);
+    } catch (e) {
+      return new Date().getHours();
+    }
+  };
+
+  // Generate a random dynamic greeting depending on the time of day and timezone
+  const getGreeting = (contactName) => {
+    const hour = getLocalHour();
+    let timeBased = 'Buenos días';
+    if (hour >= 12 && hour < 19) {
+      timeBased = 'Buenas tardes';
+    } else if (hour >= 19 || hour < 5) {
+      timeBased = 'Buenas noches';
+    }
+
+    const pool = contactName ? [
+      `${timeBased}, ${contactName}.`,
+      `¡Hola, ${contactName}!`,
+      `Buen día, ${contactName}.`,
+      `¿Qué tal, ${contactName}?`,
+      `Un gusto saludarle, ${contactName}.`,
+      `Espero se encuentre muy bien, ${contactName}.`
+    ] : [
+      `${timeBased}.`,
+      `¡Hola!`,
+      `Buen día.`,
+      `¿Qué tal?`,
+      `Un gusto saludarles.`,
+      `Espero se encuentren muy bien.`
+    ];
+
+    const randomIndex = Math.floor(Math.random() * pool.length);
+    return pool[randomIndex];
+  };
+
+  // Generate a random dynamic presentation
+  const getPresentation = (executiveName) => {
+    const pool = [
+      `Mi nombre es ${executiveName} de Temikia Agency.`,
+      `Me llamo ${executiveName} de Temikia.`,
+      `Mi nombre es ${executiveName}, soy parte de Temikia.`
+    ];
+    const randomIndex = Math.floor(Math.random() * pool.length);
+    return pool[randomIndex];
+  };
+
+  // Update Template #0 dynamically when the lead is changed or edited
+  useEffect(() => {
+    if (lead?.id) {
+      const contactName = form.contacto_nombre ? form.contacto_nombre.trim() : '';
+      const executiveName = user?.nombreCompleto || user?.nombre_completo || user?.nombre_corto || user?.nombre || 'asesor de Temikia';
+      
+      const greeting = getGreeting(contactName);
+      const presentation = getPresentation(executiveName);
+      
+      setDynamicTemplate0(`${greeting} ${presentation}`);
+    }
+  }, [lead?.id, form.contacto_nombre, user]);
+
+  const getTemplatesList = () => {
+    const giroCategory = getGiroCategory(lead?.giro_nombre, form.estilo);
+    const baseTemplates = WHATSAPP_TEMPLATES[giroCategory] || WHATSAPP_TEMPLATES["Otros (Genérico)"];
+    return ["[plantilla_0]", ...baseTemplates];
+  };
 
   // Fetch full details of the selected lead
   useEffect(() => {
@@ -1367,6 +1443,9 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
 
   const compileWhatsAppMessage = (templateText) => {
     if (!templateText) return '';
+    if (templateText === "[plantilla_0]") {
+      return dynamicTemplate0;
+    }
     const contactName = form.contacto_nombre ? form.contacto_nombre.trim() : '';
     const executiveName = user?.nombreCompleto || user?.nombre_completo || user?.nombre_corto || user?.nombre || 'asesor de Temikia';
     const city = form.ciudad ? form.ciudad.trim() : 'tu localidad';
@@ -1409,8 +1488,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
   };
 
   const getWhatsAppMessage = () => {
-    const giroCategory = getGiroCategory(lead?.giro_nombre, form.estilo);
-    const templatesForGiro = WHATSAPP_TEMPLATES[giroCategory] || WHATSAPP_TEMPLATES["Otros (Genérico)"];
+    const templatesForGiro = getTemplatesList();
     const selectedTemplate = templatesForGiro[selectedTemplateIndex] || templatesForGiro[0] || '';
     
     let compiled = compileWhatsAppMessage(selectedTemplate);
@@ -1813,7 +1891,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
                   </div>
                   
                   {(() => {
-                    const templates = WHATSAPP_TEMPLATES[getGiroCategory(lead?.giro_nombre, form.estilo)] || WHATSAPP_TEMPLATES["Otros (Genérico)"];
+                    const templates = getTemplatesList();
                     const totalTemplates = templates.length;
                     const handlePrev = () => {
                       setSelectedTemplateIndex((prev) => (prev - 1 + totalTemplates) % totalTemplates);
@@ -1905,7 +1983,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
                     lineHeight: '1.45'
                   }}>
                     {compileWhatsAppMessage(
-                      (WHATSAPP_TEMPLATES[getGiroCategory(lead?.giro_nombre, form.estilo)] || WHATSAPP_TEMPLATES["Otros (Genérico)"])[selectedTemplateIndex] || ''
+                      getTemplatesList()[selectedTemplateIndex] || ''
                     )}
                   </div>
                 </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail, Lock, ShieldAlert, Key, Sparkles, ArrowRight, ShieldCheck, RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -16,6 +16,8 @@ const Login = ({ onLoginSuccess }) => {
   // 2FA state
   const [requires2FA, setRequires2FA] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
+  const [timer, setTimer] = useState(180);
+  const [canResend, setCanResend] = useState(false);
 
   // Status states
   const [loading, setLoading] = useState(false);
@@ -26,6 +28,67 @@ const Login = ({ onLoginSuccess }) => {
   const isTemikiaEmail = (val) => {
     const trimmed = val.trim().toLowerCase();
     return trimmed.endsWith('@temikia.com');
+  };
+
+  // 2FA countdown timer effect hook
+  useEffect(() => {
+    let interval = null;
+    if (requires2FA && timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    } else if (timer === 0) {
+      setCanResend(true);
+      if (interval) clearInterval(interval);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [requires2FA, timer]);
+
+  // Format timer in MM:SS format
+  const formatTimer = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  // Handler for resending the 2FA code
+  const handleResendCode = async () => {
+    setError('');
+    setSuccessMessage('');
+    setVerificationCode('');
+
+    const trimmedEmail = email.trim().toLowerCase();
+
+    try {
+      setLoading(true);
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmedEmail, password })
+      });
+
+      let data;
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        throw new Error('No se pudo establecer comunicación con el servidor. Intente de nuevo.');
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Ocurrió un error al intentar reenviar el código.');
+      }
+
+      setSuccessMessage(`Se ha enviado un nuevo código de verificación de 6 dígitos a su correo corporativo ${trimmedEmail}.`);
+      setTimer(180); // Reset countdown back to 3 minutes
+      setCanResend(false); // Disable resend option
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLoginSubmit = async (e) => {
@@ -76,6 +139,8 @@ const Login = ({ onLoginSuccess }) => {
         setSuccessMessage(data.message || 'Primer inicio de sesión exitoso. Por seguridad, debe cambiar su contraseña.');
       } else if (data.requires2FA) {
         setRequires2FA(true);
+        setTimer(180);
+        setCanResend(false);
         setSuccessMessage(`Se ha enviado un código de verificación de 6 dígitos a su correo corporativo ${data.email}.`);
       } else {
         onLoginSuccess(data.user);
@@ -362,7 +427,33 @@ const Login = ({ onLoginSuccess }) => {
                     style={{ letterSpacing: '6px', textAlign: 'center', fontSize: '18px', fontWeight: 'bold' }}
                   />
                 </div>
-                <span className="login-field-hint">Código válido por exactamente 3 minutos</span>
+                <span className="login-field-hint">Código de seguridad de un solo uso</span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginTop: '4px', marginBottom: '16px' }}>
+                <span style={{ fontSize: '13px', color: timer > 0 ? 'var(--text-secondary)' : 'var(--color-danger)', fontWeight: 600 }}>
+                  {timer > 0 ? `El código expira en: ${formatTimer(timer)}` : 'El código ha expirado'}
+                </span>
+                
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  disabled={loading || !canResend}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: canResend ? 'var(--color-primary)' : 'var(--text-muted)',
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    cursor: canResend ? 'pointer' : 'not-allowed',
+                    textDecoration: canResend ? 'underline' : 'none',
+                    opacity: canResend ? 1 : 0.6,
+                    transition: 'all var(--transition-fast)',
+                    fontFamily: 'inherit'
+                  }}
+                >
+                  Reenviar código
+                </button>
               </div>
 
               <button 

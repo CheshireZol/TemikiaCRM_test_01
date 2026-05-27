@@ -196,7 +196,7 @@ const Dashboard = ({ user, onLeadClick }) => {
       
       {/* 2. REFINEMENT FILTERS BAR */}
       <div className="table-card" style={{ padding: '16px 20px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', width: '100%', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <SlidersHorizontal size={15} style={{ color: 'var(--color-ai)' }} />
             <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>Refinar Analíticas</span>
@@ -336,7 +336,7 @@ const Dashboard = ({ user, onLeadClick }) => {
       <div className="charts-row">
         
         {/* Left: Bar Chart (Giro commercial distribution) */}
-        <div className="card" style={{ flex: 1.2 }}>
+        <div className="card">
           <div>
             <h3 className="card-title">Distribución por Giro de Negocio</h3>
             <p className="card-subtitle">Principales categorías de leads clasificadas en base de datos</p>
@@ -394,7 +394,7 @@ const Dashboard = ({ user, onLeadClick }) => {
         </div>
 
         {/* Right: Pie Chart (Doughnut Status distribution) */}
-        <div className="card" style={{ flex: 0.8 }}>
+        <div className="card">
           <div>
             <h3 className="card-title">Estatus del Pipeline Comercial</h3>
             <p className="card-subtitle">Proporción de prospectos en cada etapa de ventas</p>
