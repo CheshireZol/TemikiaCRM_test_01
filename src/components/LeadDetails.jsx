@@ -171,6 +171,150 @@ const getGiroCategory = (giroName, estiloName) => {
   return "Otros (Genérico)";
 };
 
+// Resolve the business IANA timezone using country and lat/lon coordinates
+const getBusinessTimezone = (lat, lon, country) => {
+  const c = (country || '').trim().toLowerCase();
+  
+  if (c === 'argentina') return 'America/Argentina/Buenos_Aires';
+  if (c === 'chile') return 'America/Santiago';
+  if (c === 'ecuador') return 'America/Guayaquil';
+  if (c === 'venezuela') return 'America/Caracas';
+  if (c === 'españa' || c === 'espana' || c === 'spain') return 'Europe/Madrid';
+  if (c === 'italia' || c === 'italy') return 'Europe/Rome';
+  
+  // México
+  if (c === 'méxico' || c === 'mexico') {
+    if (lon) {
+      const numLng = parseFloat(lon);
+      if (numLng < -110) return 'America/Tijuana';
+      if (numLng < -105) return 'America/Hermosillo';
+      if (numLng < -100) return 'America/Chihuahua';
+      if (numLng > -88) return 'America/Cancun';
+    }
+    return 'America/Mexico_City';
+  }
+  
+  // Estados Unidos
+  if (c === 'estados unidos' || c === 'usa' || c === 'united states') {
+    if (lon) {
+      const numLng = parseFloat(lon);
+      if (numLng < -114) return 'America/Los_Angeles';
+      if (numLng < -104) return 'America/Denver';
+      if (numLng < -88) return 'America/Chicago';
+      return 'America/New_York';
+    }
+    return 'America/New_York';
+  }
+  
+  // Fallbacks by coordinates if country is missing or empty
+  if (lat && lon) {
+    const numLat = parseFloat(lat);
+    const numLng = parseFloat(lon);
+    
+    // Continental US
+    if (numLng > -125 && numLng < -66 && numLat > 24 && numLat < 49) {
+      if (numLng < -114) return 'America/Los_Angeles';
+      if (numLng < -104) return 'America/Denver';
+      if (numLng < -88) return 'America/Chicago';
+      return 'America/New_York';
+    }
+    // Mexico
+    if (numLng > -118 && numLng < -86 && numLat > 14 && numLat < 33) {
+      if (numLng < -110) return 'America/Tijuana';
+      if (numLng < -105) return 'America/Hermosillo';
+      return 'America/Mexico_City';
+    }
+    // Spain
+    if (numLng > -10 && numLng < 5 && numLat > 35 && numLat < 44) return 'Europe/Madrid';
+    // Italy
+    if (numLng > 6 && numLng < 19 && numLat > 35 && numLat < 48) return 'Europe/Rome';
+  }
+  
+  return 'America/Mexico_City';
+};
+
+// Parse a single day's hour range (e.g. "9:30 AM to 10 PM", "Cerrado")
+const parseHoursRange = (hoursStr) => {
+  const str = (hoursStr || '').trim().toLowerCase();
+  if (str === 'cerrado' || str === 'closed' || str === '') return null;
+  if (str.includes('24 horas') || str.includes('24 hours') || str.includes('abierto 24')) return { open24h: true };
+
+  // Split by "to" or "-"
+  const parts = str.split(/\s+to\s+|\s*-\s*/);
+  if (parts.length < 2) return null;
+
+  const startPart = parts[0].trim();
+  const endPart = parts[1].trim();
+
+  const isStartPM = startPart.includes('pm');
+  const isStartAM = startPart.includes('am');
+  const isEndPM = endPart.includes('pm');
+  const isEndAM = endPart.includes('am');
+
+  const startClean = startPart.replace(/(am|pm|\s| )/g, '');
+  const endClean = endPart.replace(/(am|pm|\s| )/g, '');
+
+  const startMatch = startClean.match(/^(\d+)(?::(\d+))?$/);
+  const endMatch = endClean.match(/^(\d+)(?::(\d+))?$/);
+
+  if (!startMatch || !endMatch) return null;
+
+  let startHr = parseInt(startMatch[1], 10);
+  let startMin = startMatch[2] ? parseInt(startMatch[2], 10) : 0;
+  let endHr = parseInt(endMatch[1], 10);
+  let endMin = endMatch[2] ? parseInt(endMatch[2], 10) : 0;
+
+  // Resolve PM/AM for end time
+  if (isEndPM && endHr < 12) {
+    endHr += 12;
+  } else if (isEndAM && endHr === 12) {
+    endHr = 0;
+  }
+
+  // Resolve PM/AM for start time
+  if (isStartPM) {
+    if (startHr < 12) startHr += 12;
+  } else if (isStartAM) {
+    if (startHr === 12) startHr = 0;
+  } else {
+    // Infer start PM/AM from end time
+    if (isEndPM) {
+      const endHrRaw = parseInt(endMatch[1], 10);
+      if (startHr < 12 && startHr < endHrRaw) {
+        if (startHr < 9) {
+          startHr += 12;
+        }
+      }
+    }
+  }
+
+  return { startHr, startMin, endHr, endMin };
+};
+
+// Check if a business is currently open
+const checkIsOpen = (hoursStr, currentHour, currentMin) => {
+  const range = parseHoursRange(hoursStr);
+  if (!range) return false;
+  if (range.open24h) return true;
+
+  const { startHr, startMin, endHr, endMin } = range;
+  
+  const currentTotal = currentHour * 60 + currentMin;
+  const startTotal = startHr * 60 + startMin;
+  let endTotal = endHr * 60 + endMin;
+
+  if (endTotal < startTotal) {
+    // Overnight case, e.g. 7 PM to 2 AM (19:00 to 02:00)
+    endTotal += 24 * 60;
+    if (currentTotal < startTotal) {
+      const currentTotalAdjusted = currentTotal + 24 * 60;
+      return currentTotalAdjusted >= startTotal && currentTotalAdjusted <= endTotal;
+    }
+  }
+  
+  return currentTotal >= startTotal && currentTotal <= endTotal;
+};
+
 const LeadDetails = ({ leadId, user, onClose, onSaveSuccess }) => {
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -181,6 +325,7 @@ const LeadDetails = ({ leadId, user, onClose, onSaveSuccess }) => {
   const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'success' | 'error'
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // State for custom delete confirmation modal
   const [selectedTemplateIndex, setSelectedTemplateIndex] = useState(0);
+  const [hasWebsiteError, setHasWebsiteError] = useState(false);
 
   // Editable Form states
   const [form, setForm] = useState({
@@ -248,6 +393,11 @@ const LeadDetails = ({ leadId, user, onClose, onSaveSuccess }) => {
         
         setLead(data);
         
+        const rawWeb = data.sitio_web || '';
+        const hasWebErr = rawWeb.toLowerCase().includes('(error)');
+        const cleanWeb = rawWeb.replace(/^\(error\)\s*/i, '');
+        setHasWebsiteError(hasWebErr);
+        
         // Populate form
         setForm({
           nombre: data.nombre || '',
@@ -259,7 +409,7 @@ const LeadDetails = ({ leadId, user, onClose, onSaveSuccess }) => {
           miembro_id: data.miembro_id || '', // Populate FK
           contacto_nombre: data.contacto_nombre || '',
           contacto_puesto: data.contacto_puesto || '',
-          sitio_web: data.sitio_web || '',
+          sitio_web: cleanWeb,
           correo: parseStringArray(data.correo).join(', '),
           telefono: parseStringArray(data.telefono).join(', '),
           whatsapp: parseStringArray(data.whatsapp).join(', '),
@@ -1004,7 +1154,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
           <h3 class="card-title">Presencia Digital y Redes</h3>
           <div class="field-grid-2">
             <div class="field">
-              <span class="label">Sitio Web Oficial</span>
+              <span class="label">Sitio Web Oficial ${hasWebsiteError ? '<span style="color:#ef4444; font-size:8px; font-weight:800; margin-left:4px;">(ERROR)</span>' : ''}</span>
               <span class="value mono">${form.sitio_web || 'No provisto'}</span>
             </div>
             <div class="field">
@@ -1129,6 +1279,36 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
   const rrss = parseJsonbField(lead.rrss);
   const horarios = parseJsonbField(lead.horario);
   const hasCoordinates = lead.lat && lead.lon;
+
+  // Resolve business timezone, local current time and open/closed status
+  const businessTz = getBusinessTimezone(lead.lat, lead.lon, lead.pais);
+  const getBusinessCurrentTime = () => {
+    try {
+      const nowStr = new Date().toLocaleString("en-US", { timeZone: businessTz });
+      return new Date(nowStr);
+    } catch (e) {
+      console.error("Error formatting timezone date:", e);
+      return new Date(); // fallback
+    }
+  };
+  const nowInBusinessTz = getBusinessCurrentTime();
+  const businessDayIndex = nowInBusinessTz.getDay();
+  const businessHour = nowInBusinessTz.getHours();
+  const businessMin = nowInBusinessTz.getMinutes();
+  
+  const DAYS_ES_NORMALIZED = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
+  const currentDayNormalized = DAYS_ES_NORMALIZED[businessDayIndex];
+
+  let isBusinessOpenNow = false;
+  if (horarios && horarios.list && horarios.list.length > 0) {
+    const todayEntry = horarios.list.find(h => {
+      const hDay = (h.day || '').trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      return hDay === currentDayNormalized;
+    });
+    if (todayEntry) {
+      isBusinessOpenNow = checkIsOpen(todayEntry.hours, businessHour, businessMin);
+    }
+  }
 
   // Parse Google Maps additional research fields
   const webSearchLinks = parseStringArray(lead.web_search);
@@ -1729,7 +1909,23 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
             </div>
 
             <div className="property-item" style={{ marginTop: '8px' }}>
-              <label className="property-label">Sitio Web</label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <label className="property-label" style={{ margin: 0 }}>Sitio Web</label>
+                {hasWebsiteError && (
+                  <span style={{ 
+                    fontSize: '10.5px', 
+                    fontWeight: 700, 
+                    color: '#ef4444',
+                    textTransform: 'uppercase',
+                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    border: '1px solid rgba(239, 68, 68, 0.15)'
+                  }}>
+                    Error de Conexión
+                  </span>
+                )}
+              </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input type="text" name="sitio_web" value={form.sitio_web} onChange={handleChange} className="property-input" style={{ flex: 1 }} />
                 {form.sitio_web && (
@@ -1947,9 +2143,23 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
           {/* 5. HORARIOS DE ATENCIÓN */}
           {horarios && horarios.list && horarios.list.length > 0 && (
             <div className="drawer-section">
-              <span className="drawer-section-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Clock size={13} />
-                <span>Horarios de Operación</span>
+              <span className="drawer-section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Clock size={13} />
+                  <span>Horarios de Operación</span>
+                </div>
+                <span style={{ 
+                  fontSize: '11px', 
+                  fontWeight: 700, 
+                  textTransform: 'uppercase',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  backgroundColor: isBusinessOpenNow ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                  color: isBusinessOpenNow ? '#10b981' : '#ef4444',
+                  border: isBusinessOpenNow ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(239, 68, 68, 0.2)'
+                }}>
+                  {isBusinessOpenNow ? 'Abierto' : 'Cerrado'}
+                </span>
               </span>
               <div style={{ 
                 backgroundColor: 'var(--bg-main)', 
@@ -1962,12 +2172,31 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
                   <span>Día</span>
                   <span>Horas de Atención</span>
                 </div>
-                {horarios.list.map((h, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', padding: '3px 0', borderBottom: i < horarios.list.length - 1 ? '1px dashed rgba(100, 116, 139, 0.1)' : 'none' }}>
-                    <span style={{ textTransform: 'capitalize', fontWeight: 500 }}>{h.day}</span>
-                    <span style={{ color: 'var(--text-secondary)' }}>{h.hours}</span>
-                  </div>
-                ))}
+                {horarios.list.map((h, i) => {
+                  const hDayNormalized = (h.day || '').trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                  const isToday = hDayNormalized === currentDayNormalized;
+                  
+                  return (
+                    <div 
+                      key={i} 
+                      style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: '1fr 1fr', 
+                        gap: '8px', 
+                        padding: '6px 8px', 
+                        margin: '0 -8px',
+                        borderRadius: isToday ? '6px' : '0',
+                        backgroundColor: isToday ? 'rgba(168, 85, 247, 0.08)' : 'transparent', 
+                        border: isToday ? '1px solid rgba(168, 85, 247, 0.25)' : 'none',
+                        color: isToday ? '#a855f7' : 'inherit',
+                        borderBottom: (!isToday && i < horarios.list.length - 1) ? '1px dashed rgba(100, 116, 139, 0.1)' : 'none'
+                      }}
+                    >
+                      <span style={{ textTransform: 'capitalize', fontWeight: isToday ? 700 : 500 }}>{h.day}</span>
+                      <span style={{ color: isToday ? '#a855f7' : 'var(--text-secondary)', fontWeight: isToday ? 600 : 400 }}>{h.hours}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

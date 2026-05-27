@@ -15,24 +15,24 @@ async function run() {
     await client.connect();
     console.log('Connected to database!');
     
-    // Check columns of negocios_gmaps
+    // Check columns of miembros_equipo
     const resColumns = await client.query(`
       SELECT column_name, data_type 
       FROM information_schema.columns 
-      WHERE table_schema = 'temikia_crm' AND table_name = 'negocios_gmaps'
+      WHERE table_schema = 'temikia_crm' AND table_name = 'miembros_equipo'
     `);
-    console.log('Columns in temikia_crm.negocios_gmaps:');
+    console.log('Columns in temikia_crm.miembros_equipo:');
     console.log(resColumns.rows);
     
-    // Check a sample row
-    const resSample = await client.query(`
-      SELECT id, total_score, reviews_count, web_search, peoplealsosearch 
-      FROM temikia_crm.negocios_gmaps 
-      WHERE total_score IS NOT NULL OR reviews_count IS NOT NULL OR web_search IS NOT NULL OR peoplealsosearch IS NOT NULL
-      LIMIT 1
+    // Query unique countries
+    const resHorarios = await client.query(`
+      SELECT nombre, horario FROM temikia_crm.prospectos_negocios WHERE horario IS NOT NULL LIMIT 8
     `);
-    console.log('Sample row from temikia_crm.negocios_gmaps:');
-    console.log(JSON.stringify(resSample.rows[0], null, 2));
+    console.log('Sample horarios from prospectos_negocios:');
+    resHorarios.rows.forEach(r => {
+      console.log(r.nombre + ':');
+      console.log(JSON.stringify(r.horario, null, 2));
+    });
     
   } catch (err) {
     console.error('Error during query:', err);

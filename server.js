@@ -1052,7 +1052,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     // 2. Fetch the user credentials and team member profile details
     const userRes = await pool.query(
-      `SELECT ml.*, me.nombre_completo, me.nombre_corto, me.telefono, me.pais, me.ciudad, me.cargo, me.foto_url 
+      `SELECT ml.*, me.nombre_completo, me.nombre_corto, me.telefono, me.pais, me.ciudad, me.zona_horaria, me.cargo, me.foto_url 
        FROM temikia_crm.miembros_login ml
        LEFT JOIN temikia_crm.miembros_equipo me ON ml.miembro_id = me.miembro_id
        WHERE ml.email_login = $1`,
@@ -1361,6 +1361,7 @@ app.post('/api/auth/verify-2fa', async (req, res) => {
         telefono: user.telefono || '',
         pais: user.pais || '',
         ciudad: user.ciudad || '',
+        zonaHoraria: user.zona_horaria || '',
         cargo: user.cargo || '',
         fotoUrl: user.foto_url || ''
       }
@@ -1485,7 +1486,7 @@ app.get('/api/auth/profile/:miembroId', async (req, res) => {
   try {
     const { miembroId } = req.params;
     const result = await pool.query(
-      'SELECT miembro_id, nombre_completo, nombre_corto, telefono, email, pais, ciudad, cargo, foto_url, notas FROM temikia_crm.miembros_equipo WHERE miembro_id = $1',
+      'SELECT miembro_id, nombre_completo, nombre_corto, telefono, email, pais, ciudad, zona_horaria, cargo, foto_url, notas FROM temikia_crm.miembros_equipo WHERE miembro_id = $1',
       [miembroId]
     );
 

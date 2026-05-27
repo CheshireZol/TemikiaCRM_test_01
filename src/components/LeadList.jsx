@@ -11,7 +11,8 @@ import {
   SlidersHorizontal,
   RefreshCw,
   Wand2,
-  Eye
+  Eye,
+  XCircle
 } from 'lucide-react';
 import { parseStringArray, formatDate, calculateAILeadScore } from '../utils.js';
 
@@ -276,10 +277,18 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
             type="text"
             placeholder="Buscar por nombre, giro..."
             className="header-search-input"
-            style={{ width: '100%', padding: '10px 12px 10px 38px' }}
+            style={{ width: '100%', padding: searchQuery ? '10px 36px 10px 38px' : '10px 12px 10px 38px' }}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+          {searchQuery && (
+            <XCircle 
+              className="header-clear-icon" 
+              size={16} 
+              onClick={() => setSearchQuery('')}
+              title="Limpiar búsqueda"
+            />
+          )}
         </div>
       </div>
 

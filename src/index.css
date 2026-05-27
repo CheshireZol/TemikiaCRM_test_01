@@ -351,6 +351,21 @@ body {
   background-color: var(--bg-card);
 }
 
+.header-clear-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+
+.header-clear-icon:hover {
+  color: var(--color-danger, #ef4444);
+  transform: translateY(-50%) scale(1.1);
+}
+
 .header-right {
   display: flex;
   align-items: center;

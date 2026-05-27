@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Plus, Sparkles, Menu } from 'lucide-react';
+import { Search, Plus, Sparkles, Menu, XCircle } from 'lucide-react';
 
 const Header = ({ 
   currentTab, 
@@ -62,7 +62,16 @@ const Header = ({
               className="header-search-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ paddingRight: searchQuery ? '36px' : '12px' }}
             />
+            {searchQuery && (
+              <XCircle 
+                className="header-clear-icon" 
+                size={16} 
+                onClick={() => setSearchQuery('')}
+                title="Limpiar búsqueda"
+              />
+            )}
           </div>
         </div>
       )}

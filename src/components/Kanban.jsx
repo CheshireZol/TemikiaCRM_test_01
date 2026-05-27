@@ -10,7 +10,8 @@ import {
   RefreshCw,
   Search,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  XCircle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { parseStringArray } from '../utils.js';
@@ -304,10 +305,18 @@ const Kanban = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefresh
             type="text"
             placeholder="Buscar por nombre, giro..."
             className="header-search-input"
-            style={{ width: '100%', padding: '10px 12px 10px 38px' }}
+            style={{ width: '100%', padding: searchQuery ? '10px 36px 10px 38px' : '10px 12px 10px 38px' }}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+          {searchQuery && (
+            <XCircle 
+              className="header-clear-icon" 
+              size={16} 
+              onClick={() => setSearchQuery('')}
+              title="Limpiar búsqueda"
+            />
+          )}
         </div>
       </div>
 
