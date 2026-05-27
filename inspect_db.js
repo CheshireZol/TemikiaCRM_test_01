@@ -15,14 +15,16 @@ async function run() {
     await client.connect();
     console.log('Connected to database!');
     
-    // Check columns of miembros_equipo
-    const resColumns = await client.query(`
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_schema = 'temikia_crm' AND table_name = 'miembros_equipo'
+    // Query unique countries
+    const resLead406 = await client.query(`
+      SELECT p.*, g.giro as giro_nombre, n.total_score, n.reviews_count, n.web_search, n.peoplealsosearch
+      FROM temikia_crm.prospectos_negocios p
+      LEFT JOIN temikia_crm.giros_negocios g ON p.giro_id = g.id
+      LEFT JOIN temikia_crm.negocios_gmaps n ON p.negocios_gmaps_id = n.id
+      WHERE p.negocios_gmaps_id = 406 OR p.nombre ILIKE '%Humberto%'
     `);
-    console.log('Columns in temikia_crm.miembros_equipo:');
-    console.log(resColumns.rows);
+    console.log('Lead 406 data:');
+    console.log(JSON.stringify(resLead406.rows[0], null, 2));
     
     // Query unique countries
     const resHorarios = await client.query(`

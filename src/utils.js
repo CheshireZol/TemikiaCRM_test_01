@@ -30,6 +30,19 @@ export const parseJsonbField = (val, fallback = {}) => {
   return fallback;
 };
 
+// 2b. Safe social links parser (handles both string and array of strings)
+export const parseSocialLinks = (val) => {
+  if (Array.isArray(val)) {
+    return val.map(item => (typeof item === 'string' ? item.trim() : '')).filter(Boolean);
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    return trimmed ? [trimmed] : [];
+  }
+  return [];
+};
+
+
 // 3. Format Date to readable spanish format
 export const formatDate = (dateString) => {
   if (!dateString) return 'Sin fecha';
@@ -114,7 +127,7 @@ export const calculateAILeadScore = (lead) => {
   }
 
   const rrss = parseJsonbField(lead.rrss);
-  const socialCount = Object.keys(rrss).filter(k => rrss[k] && rrss[k].trim().length > 0).length;
+  const socialCount = Object.keys(rrss).filter(k => parseSocialLinks(rrss[k]).length > 0).length;
   if (socialCount >= 2) {
     score += 10; // Fuerte huella multicanal social (FB/IG)
   } else if (socialCount === 1) {
@@ -400,7 +413,7 @@ export const getSuggestedProducts = (lead, form) => {
 
   // Rule 3: Active social media networks presence (FB/IG)
   const rrssObj = parseJsonbField(lead.rrss);
-  const activeSocials = Object.keys(rrssObj).filter(k => rrssObj[k] && rrssObj[k].trim().length > 0);
+  const activeSocials = Object.keys(rrssObj).filter(k => parseSocialLinks(rrssObj[k]).length > 0);
 
   if (activeSocials.length > 0) {
     suggestions.push({

@@ -25,7 +25,8 @@ import {
   formatDate,
   calculateAILeadScore,
   generateAISalesStrategy,
-  getSuggestedProducts
+  getSuggestedProducts,
+  parseSocialLinks
 } from '../utils.js';
 
 // Dictionary of WhatsApp Templates organized by business category/giro
@@ -587,12 +588,15 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
     // Format Social Networks (with full URLs)
     const parsedRrss = parseJsonbField(lead.rrss);
     const socialNetworksHtml = Object.keys(parsedRrss)
-      .filter(key => parsedRrss[key] && parsedRrss[key].trim() !== '')
       .map(key => {
-        const url = parsedRrss[key].trim();
+        const links = parseSocialLinks(parsedRrss[key]);
+        if (links.length === 0) return '';
         const label = key.charAt(0).toUpperCase() + key.slice(1);
-        return `• <a href="${url}" target="_blank" style="color:#0891b2; text-decoration:underline; word-break:break-all;"><strong>${label}</strong>: ${url}</a>`;
+        return links.map(url => {
+          return `• <a href="${url}" target="_blank" style="color:#0891b2; text-decoration:underline; word-break:break-all;"><strong>${label}</strong>: ${url}</a>`;
+        }).join('<br/>');
       })
+      .filter(Boolean)
       .join('<br/>') || 'Ninguna identificada';
 
     // Format Web Search references
@@ -2002,26 +2006,29 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
           </div>
 
           {/* 4. REDES SOCIALES */}
-          {Object.keys(rrss).length > 0 && (
+          {Object.keys(rrss).some(k => parseSocialLinks(rrss[k]).length > 0) && (
             <div className="drawer-section">
               <span className="drawer-section-title">Canales Sociales Encontrados</span>
               <div className="social-links-row">
-                {Object.keys(rrss).map(platform => {
-                  const url = rrss[platform];
-                  if (!url || url.trim() === '') return null;
-                  return (
-                    <a 
-                      key={platform} 
-                      href={url} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="social-chip"
-                    >
-                      <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{platform}</span>
-                      <ExternalLink size={12} />
-                    </a>
-                  );
-                })}
+                {Object.keys(rrss).reduce((acc, platform) => {
+                  const links = parseSocialLinks(rrss[platform]);
+                  links.forEach((url, idx) => {
+                    const displayLabel = links.length > 1 ? `${platform} ${idx + 1}` : platform;
+                    acc.push(
+                      <a 
+                        key={`${platform}-${idx}`} 
+                        href={url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="social-chip"
+                      >
+                        <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{displayLabel}</span>
+                        <ExternalLink size={12} />
+                      </a>
+                    );
+                  });
+                  return acc;
+                }, [])}
               </div>
             </div>
           )}

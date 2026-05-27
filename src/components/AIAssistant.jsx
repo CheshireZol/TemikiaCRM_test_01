@@ -25,7 +25,8 @@ import {
   generateWhatsappMessage,
   generateEmailMessage,
   generateCallMessage,
-  cleanPhoneForWhatsapp
+  cleanPhoneForWhatsapp,
+  parseSocialLinks
 } from '../utils.js';
 
 const statusLabels = {
@@ -65,7 +66,7 @@ const AIAssistant = ({ user, triggerRefresh, onLeadClick }) => {
   const correoList = selectedLead ? parseStringArray(selectedLead.correo) : [];
   const webSearchList = selectedLead ? parseStringArray(selectedLead.web_search) : [];
   const rrss = selectedLead ? parseJsonbField(selectedLead.rrss) : {};
-  const socialCount = Object.keys(rrss).filter(k => rrss[k] && rrss[k].trim().length > 0).length;
+  const socialCount = Object.keys(rrss).filter(k => parseSocialLinks(rrss[k]).length > 0).length;
   const peopleAlsoSearchObj = selectedLead ? parseJsonbField(selectedLead.peoplealsosearch) : {};
   const competidores = peopleAlsoSearchObj.resultados || [];
   
