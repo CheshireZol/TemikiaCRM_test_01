@@ -26,6 +26,19 @@ import {
 import StatCard from './StatCard.jsx';
 import { formatDate } from '../utils.js';
 
+const statusLabels = {
+  nuevo: "Nuevo",
+  proceso_contacto: "En Proceso",
+  contactado: "Contactado",
+  calificado: "Calificado",
+  propuesta: "Propuesta",
+  ganado: "Ganado",
+  perdido: "Perdido",
+  descalificado: "Descalificado",
+  datos_invalidos: "Datos Inválidos",
+  cerrado_inexistente: "Cerrado"
+};
+
 const Dashboard = ({ user, onLeadClick }) => {
   const [kpis, setKpis] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,7 +54,7 @@ const Dashboard = ({ user, onLeadClick }) => {
   });
 
   const [miembros, setMiembros] = useState([]);
-  const [asignadoAMi, setAsignadoAMi] = useState(false);
+  const [asignadoAMi, setAsignadoAMi] = useState(true);
 
   // Dynamic filter options retrieved from DB
   const [filterOptions, setFilterOptions] = useState({
@@ -170,7 +183,7 @@ const Dashboard = ({ user, onLeadClick }) => {
 
   // Pre-process Pie Chart (Status counts)
   const pieChartData = kpis.statusCounts.map(row => ({
-    name: row.estatus ? (row.estatus.charAt(0).toUpperCase() + row.estatus.slice(1)) : 'Sin Estatus',
+    name: row.estatus ? (statusLabels[row.estatus] || row.estatus) : 'Sin Estatus',
     value: parseInt(row.count, 10)
   }));
 

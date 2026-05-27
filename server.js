@@ -513,6 +513,7 @@ app.get('/api/prospectos', async (req, res) => {
       giro,
       owner,
       miembro_id, // Accept miembro_id UUID filter
+      asistente_ia_activo,
       q,
       sortBy = 'updated_at',
       sortOrder = 'DESC',
@@ -551,6 +552,10 @@ app.get('/api/prospectos', async (req, res) => {
       whereClauses.push(`p.owner = $${valIndex++}`);
       values.push(owner);
     }
+    if (asistente_ia_activo !== undefined && asistente_ia_activo !== '') {
+      whereClauses.push(`p.asistente_ia_activo = $${valIndex++}`);
+      values.push(asistente_ia_activo === 'true' || asistente_ia_activo === true);
+    }
 
     // Text search fallback to name, giro name, city, or country
     if (q && q.trim() !== '') {
@@ -570,17 +575,19 @@ app.get('/api/prospectos', async (req, res) => {
     const safeLimit = Math.min(parseInt(limit, 10) || 50, 150);
     const safeOffset = Math.max(parseInt(offset, 10) || 0, 0);
 
-    // Dynamic Query with LEFT JOIN lookup on Giro name
+    // Dynamic Query with LEFT JOIN lookup on Giro name and Google Maps details
     const dataQuery = `
       SELECT p.id, p.negocios_gmaps_id, p.nombre, p.correo, p.telefono, p.estilo, p.sitio_web, p.rrss, p.whatsapp, 
              p.contacto_nombre, p.contacto_puesto, p.direccion1, p.ciudad, p.estado, p.pais, p.lat, p.lon, p.horario, 
              p.canal_preferido, p.estatus, p.owner, p.source, p.lead_score, p.prioridad, p.proximo_paso_at, 
              p.ultimo_contacto_at, p.consent_marketing, p.notas, p.ficha_prospeccion, p.created_at, p.updated_at,
-             p.giro_id, p.miembro_id, COALESCE(g.giro, p.estilo, 'Sin Giro') as giro_nombre,
-             COALESCE(me.nombre_completo, p.owner, 'Sin Asignar') as owner_nombre
+             p.giro_id, p.miembro_id, p.asistente_ia_activo, COALESCE(g.giro, p.estilo, 'Sin Giro') as giro_nombre,
+             COALESCE(me.nombre_completo, p.owner, 'Sin Asignar') as owner_nombre,
+             n.total_score, n.reviews_count, n.web_search, n.peoplealsosearch
       FROM temikia_crm.prospectos_negocios p
       LEFT JOIN temikia_crm.giros_negocios g ON p.giro_id = g.id
       LEFT JOIN temikia_crm.miembros_equipo me ON p.miembro_id = me.miembro_id
+      LEFT JOIN temikia_crm.negocios_gmaps n ON p.negocios_gmaps_id = n.id
       ${whereString}
       ORDER BY ${safeSortBy} ${safeSortOrder}
       LIMIT $${valIndex++} OFFSET $${valIndex++}
@@ -672,6 +679,105 @@ app.put('/api/prospectos/:id/estatus', async (req, res) => {
   }
 });
 
+// PUT /api/prospectos/:id/prioridad - Fast update for priority
+app.put('/api/prospectos/:id/prioridad', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { prioridad } = req.body;
+
+    if (!prioridad) {
+      return res.status(400).json({ error: 'Field "prioridad" is required.' });
+    }
+
+    const query = `
+      UPDATE temikia_crm.prospectos_negocios
+      SET prioridad = $1, updated_at = NOW()
+      WHERE id = $2
+      RETURNING id, nombre, prioridad, updated_at
+    `;
+
+    const result = await pool.query(query, [prioridad.toLowerCase(), id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Prospect not found to update.' });
+    }
+
+    res.json({
+      message: 'Priority updated successfully.',
+      prospect: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating priority:', error);
+    res.status(500).json({ error: 'Failed to update priority.' });
+  }
+});
+
+// PUT /api/prospectos/:id/score - Fast update for AI lead score
+app.put('/api/prospectos/:id/score', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { lead_score } = req.body;
+
+    if (lead_score === undefined) {
+      return res.status(400).json({ error: 'Field "lead_score" is required.' });
+    }
+
+    const query = `
+      UPDATE temikia_crm.prospectos_negocios
+      SET lead_score = $1, updated_at = NOW()
+      WHERE id = $2
+      RETURNING id, nombre, lead_score, updated_at
+    `;
+
+    const result = await pool.query(query, [parseInt(lead_score, 10), id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Prospect not found to update.' });
+    }
+
+    res.json({
+      message: 'AI Score updated successfully.',
+      prospect: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating lead score:', error);
+    res.status(500).json({ error: 'Failed to update lead score.' });
+  }
+});
+
+// PUT /api/prospectos/:id/asistente-ia - Fast update for AI Assistant flag
+app.put('/api/prospectos/:id/asistente-ia', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { asistente_ia_activo } = req.body;
+
+    if (asistente_ia_activo === undefined) {
+      return res.status(400).json({ error: 'Field "asistente_ia_activo" is required.' });
+    }
+
+    const query = `
+      UPDATE temikia_crm.prospectos_negocios
+      SET asistente_ia_activo = $1, updated_at = NOW()
+      WHERE id = $2
+      RETURNING id, nombre, asistente_ia_activo, updated_at
+    `;
+
+    const result = await pool.query(query, [asistente_ia_activo === true || asistente_ia_activo === 'true', id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Prospect not found to update.' });
+    }
+
+    res.json({
+      message: 'AI Assistant status updated successfully.',
+      prospect: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating AI Assistant flag:', error);
+    res.status(500).json({ error: 'Failed to update AI Assistant flag.' });
+  }
+});
+
 // 7. PUT /api/prospectos/:id - Update complete details of a single lead
 app.put('/api/prospectos/:id', async (req, res) => {
   try {
@@ -698,7 +804,8 @@ app.put('/api/prospectos/:id', async (req, res) => {
       notas,
       ficha_prospeccion,
       canal_preferido,
-      proximo_paso_at
+      proximo_paso_at,
+      asistente_ia_activo
     } = req.body;
 
     if (!nombre) {
@@ -730,8 +837,9 @@ app.put('/api/prospectos/:id', async (req, res) => {
           canal_preferido = $21,
           proximo_paso_at = $22,
           estatus = $23,
+          asistente_ia_activo = $24,
           updated_at = NOW()
-      WHERE id = $24
+      WHERE id = $25
       RETURNING *
     `;
 
@@ -761,6 +869,7 @@ app.put('/api/prospectos/:id', async (req, res) => {
       canal_preferido || 'whatsapp',
       proximo_paso_at ? new Date(proximo_paso_at) : null,
       req.body.estatus || 'nuevo',
+      asistente_ia_activo === true || asistente_ia_activo === 'true',
       id
     ];
 

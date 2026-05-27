@@ -24,7 +24,7 @@ const KANBAN_STRUCTURE = [
     bgColor: 'rgba(59, 130, 246, 0.04)',
     stages: [
       { id: 'nuevo', label: 'Nuevo', desc: 'Esperando asignación o primer disparo de bot.', color: '#3B82F6' },
-      { id: 'proceso_contacto', label: 'En Proceso de Contacto', desc: 'Intentos de comunicación activos.', color: '#60A5FA' }
+      { id: 'proceso_contacto', label: 'En Proceso', desc: 'Intentos de comunicación activos.', color: '#60A5FA' }
     ]
   },
   {
@@ -54,9 +54,9 @@ const KANBAN_STRUCTURE = [
     color: '#64748B', // Slate
     bgColor: 'rgba(100, 116, 139, 0.04)',
     stages: [
-      { id: 'descalificado', label: 'Descalificado / Sin Perfil', desc: 'Negocio activo pero no apto para el servicio.', color: '#64748B' },
-      { id: 'datos_invalidos', label: 'Datos Inválidos / Inalcanzable', desc: 'Teléfono erróneo, sin canales de comunicación.', color: '#94A3B8' },
-      { id: 'cerrado_inexistente', label: 'Cerrado / Inexistente', desc: 'Fichas de GMaps con estatus "Cerrado Permanentemente" o duplicados.', color: '#CBD5E1' }
+      { id: 'descalificado', label: 'Descalificado', desc: 'Negocio activo pero no apto para el servicio.', color: '#64748B' },
+      { id: 'datos_invalidos', label: 'Datos Inválidos', desc: 'Teléfono erróneo, sin canales de comunicación.', color: '#94A3B8' },
+      { id: 'cerrado_inexistente', label: 'Cerrado', desc: 'Fichas de GMaps con estatus "Cerrado Permanentemente" o duplicados.', color: '#CBD5E1' }
     ]
   }
 ];
@@ -78,7 +78,7 @@ const Kanban = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefresh
   });
   
   const [miembros, setMiembros] = useState([]);
-  const [asignadoAMi, setAsignadoAMi] = useState(false);
+  const [asignadoAMi, setAsignadoAMi] = useState(true);
 
   // Available filter options dynamically retrieved from DB
   const [options, setOptions] = useState({

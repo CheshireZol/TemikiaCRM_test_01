@@ -9,17 +9,23 @@ import {
   Mail,
   Phone,
   SlidersHorizontal,
-  RefreshCw
+  RefreshCw,
+  Wand2,
+  Eye
 } from 'lucide-react';
-import { parseStringArray, formatDate } from '../utils.js';
+import { parseStringArray, formatDate, calculateAILeadScore } from '../utils.js';
 
 const statusLabels = {
   nuevo: "Nuevo",
+  proceso_contacto: "En Proceso",
   contactado: "Contactado",
-  calificado: "Calificado (IA)",
+  calificado: "Calificado",
   propuesta: "Propuesta",
   ganado: "Ganado",
-  perdido: "Perdido"
+  perdido: "Perdido",
+  descalificado: "Descalificado",
+  datos_invalidos: "Datos Inválidos",
+  cerrado_inexistente: "Cerrado"
 };
 
 const priorityLabels = {
@@ -54,7 +60,7 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
   });
 
   const [miembros, setMiembros] = useState([]);
-  const [asignadoAMi, setAsignadoAMi] = useState(false);
+  const [asignadoAMi, setAsignadoAMi] = useState(true);
 
   // Dynamic filter lists fetched from DB (Faceted Search v4)
   const [filterOptions, setFilterOptions] = useState({
@@ -191,6 +197,60 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
   const handlePrevPage = () => {
     if (offset > 0) {
       setOffset(prev => Math.max(0, prev - limit));
+    }
+  };
+
+  const handleUpdateStatus = async (leadId, newStatus) => {
+    try {
+      const res = await fetch(`/api/prospectos/${leadId}/estatus`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estatus: newStatus })
+      });
+      if (!res.ok) throw new Error('Error al actualizar estatus');
+      
+      // Update local state instantly
+      setLeads(prev => prev.map(lead => lead.id === leadId ? { ...lead, estatus: newStatus } : lead));
+    } catch (err) {
+      console.error(err);
+      alert('No se pudo actualizar el estatus del prospecto.');
+    }
+  };
+
+  const handleUpdatePriority = async (leadId, newPriority) => {
+    try {
+      const res = await fetch(`/api/prospectos/${leadId}/prioridad`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prioridad: newPriority })
+      });
+      if (!res.ok) throw new Error('Error al actualizar prioridad');
+      
+      // Update local state instantly
+      setLeads(prev => prev.map(lead => lead.id === leadId ? { ...lead, prioridad: newPriority } : lead));
+    } catch (err) {
+      console.error(err);
+      alert('No se pudo actualizar la prioridad del prospecto.');
+    }
+  };
+
+  const handleRecalculateAIScore = async (lead) => {
+    try {
+      // Calculate AI Score locally
+      const newScore = calculateAILeadScore(lead);
+      
+      const res = await fetch(`/api/prospectos/${lead.id}/score`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead_score: newScore })
+      });
+      if (!res.ok) throw new Error('Error al actualizar score');
+      
+      // Update local state instantly
+      setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, lead_score: newScore } : l));
+    } catch (err) {
+      console.error(err);
+      alert('No se pudo recalcular el score de este prospecto.');
     }
   };
 
@@ -409,55 +469,148 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
                 leads.map((lead) => {
                   const mails = parseStringArray(lead.correo);
                   const phones = parseStringArray(lead.telefono);
+                  const isEditable = !lead.miembro_id || lead.miembro_id === '' || (user && lead.miembro_id === user.miembroId);
                   
                   return (
-                    <tr key={lead.id} onClick={() => onLeadClick(lead.id)}>
+                    <tr key={lead.id}>
                       {/* 1. Name Column */}
                       <td className="leads-table-name-col">
-                        <div>{lead.nombre}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() => onLeadClick(lead.id)}
+                            style={{
+                              background: 'rgba(59, 130, 246, 0.1)',
+                              border: '1px solid rgba(59, 130, 246, 0.2)',
+                              borderRadius: '6px',
+                              padding: '4px 6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              color: 'var(--color-primary)',
+                              transition: 'all 0.2s',
+                              flexShrink: 0
+                            }}
+                            title="Ver Detalle del Lead"
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
+                              e.currentTarget.style.transform = 'scale(1.05)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+                              e.currentTarget.style.transform = 'scale(1)';
+                            }}
+                          >
+                            <Eye size={12} />
+                          </button>
+                          <span style={{ 
+                            fontWeight: 600,
+                            color: lead.asistente_ia_activo ? 'var(--color-ai, #a855f7)' : 'inherit',
+                            textShadow: lead.asistente_ia_activo ? '0 0 8px rgba(168, 85, 247, 0.35)' : 'none'
+                          }}>
+                            {lead.nombre}
+                          </span>
+                        </div>
                         {lead.contacto_nombre && (
-                          <span className="leads-table-contact-p">
+                          <span className="leads-table-contact-p" style={{ marginTop: '2px', display: 'block' }}>
                             {lead.contacto_nombre} {lead.contacto_puesto ? `(${lead.contacto_puesto})` : ''}
                           </span>
                         )}
                       </td>
                       
-                      {/* 2. Estatus Badge */}
+                      {/* 2. Estatus Badge Select */}
                       <td>
-                        <span className="badge" style={{
-                          backgroundColor: 
-                            lead.estatus === 'ganado' ? 'var(--status-ganado-bg)' :
-                            lead.estatus === 'perdido' ? 'var(--status-perdido-bg)' :
-                            lead.estatus === 'nuevo' ? 'var(--status-nuevo-bg)' :
-                            lead.estatus === 'contactado' ? 'var(--status-contactado-bg)' :
-                            lead.estatus === 'calificado' ? 'var(--status-calificado-bg)' :
-                            'rgba(100, 116, 139, 0.1)',
-                          color:
-                            lead.estatus === 'ganado' ? 'var(--status-ganado-text)' :
-                            lead.estatus === 'perdido' ? 'var(--status-perdido-text)' :
-                            lead.estatus === 'nuevo' ? 'var(--status-nuevo-text)' :
-                            lead.estatus === 'contactado' ? 'var(--status-contactado-text)' :
-                            lead.estatus === 'calificado' ? 'var(--status-calificado-text)' :
-                            'var(--text-secondary)'
-                        }}>
-                          {lead.estatus}
-                        </span>
+                        <select
+                          value={lead.estatus}
+                          disabled={!isEditable}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={async (e) => {
+                            e.stopPropagation();
+                            await handleUpdateStatus(lead.id, e.target.value);
+                          }}
+                          className="badge"
+                          style={{
+                            cursor: isEditable ? 'pointer' : 'not-allowed',
+                            opacity: isEditable ? 1 : 0.6,
+                            border: '1px solid rgba(255, 255, 255, 0.05)',
+                            outline: 'none',
+                            fontWeight: 600,
+                            fontSize: '11px',
+                            textTransform: 'capitalize',
+                            padding: '4px 20px 4px 8px',
+                            borderRadius: '6px',
+                            appearance: 'none',
+                            backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23ffffff%22%20opacity%3D%220.5%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")',
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 6px top 50%',
+                            backgroundSize: '8px auto',
+                            backgroundColor: 
+                              lead.estatus === 'ganado' ? 'var(--status-ganado-bg)' :
+                              lead.estatus === 'perdido' ? 'var(--status-perdido-bg)' :
+                              lead.estatus === 'nuevo' ? 'var(--status-nuevo-bg)' :
+                              lead.estatus === 'contactado' ? 'var(--status-contactado-bg)' :
+                              lead.estatus === 'calificado' ? 'var(--status-calificado-bg)' :
+                              'rgba(100, 116, 139, 0.1)',
+                            color:
+                              lead.estatus === 'ganado' ? 'var(--status-ganado-text)' :
+                              lead.estatus === 'perdido' ? 'var(--status-perdido-text)' :
+                              lead.estatus === 'nuevo' ? 'var(--status-nuevo-text)' :
+                              lead.estatus === 'contactado' ? 'var(--status-contactado-text)' :
+                              lead.estatus === 'calificado' ? 'var(--status-calificado-text)' :
+                              'var(--text-secondary)'
+                          }}
+                        >
+                          {Object.keys(statusLabels).map((key) => (
+                            <option key={key} value={key} style={{ backgroundColor: '#0f172a', color: '#fff' }}>
+                              {statusLabels[key]}
+                            </option>
+                          ))}
+                        </select>
                       </td>
 
-                      {/* 3. Priority Badge */}
+                      {/* 3. Priority Badge Select */}
                       <td>
-                        <span className="badge" style={{
-                          backgroundColor: 
-                            lead.prioridad === 'alta' ? 'var(--priority-alta-bg)' :
-                            lead.prioridad === 'media' ? 'var(--priority-media-bg)' :
-                            'var(--priority-baja-bg)',
-                          color:
-                            lead.prioridad === 'alta' ? 'var(--priority-alta-text)' :
-                            lead.prioridad === 'media' ? 'var(--priority-media-text)' :
-                            'var(--priority-baja-text)'
-                        }}>
-                          {lead.prioridad}
-                        </span>
+                        <select
+                          value={lead.prioridad}
+                          disabled={!isEditable}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={async (e) => {
+                            e.stopPropagation();
+                            await handleUpdatePriority(lead.id, e.target.value);
+                          }}
+                          className="badge"
+                          style={{
+                            cursor: isEditable ? 'pointer' : 'not-allowed',
+                            opacity: isEditable ? 1 : 0.6,
+                            border: '1px solid rgba(255, 255, 255, 0.05)',
+                            outline: 'none',
+                            fontWeight: 600,
+                            fontSize: '11px',
+                            textTransform: 'capitalize',
+                            padding: '4px 20px 4px 8px',
+                            borderRadius: '6px',
+                            appearance: 'none',
+                            backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23ffffff%22%20opacity%3D%220.5%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")',
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 6px top 50%',
+                            backgroundSize: '8px auto',
+                            backgroundColor: 
+                              lead.prioridad === 'alta' ? 'var(--priority-alta-bg)' :
+                              lead.prioridad === 'media' ? 'var(--priority-media-bg)' :
+                              'var(--priority-baja-bg)',
+                            color:
+                              lead.prioridad === 'alta' ? 'var(--priority-alta-text)' :
+                              lead.prioridad === 'media' ? 'var(--priority-media-text)' :
+                              'var(--priority-baja-text)'
+                          }}
+                        >
+                          {Object.keys(priorityLabels).map((key) => (
+                            <option key={key} value={key} style={{ backgroundColor: '#0f172a', color: '#fff' }}>
+                              {priorityLabels[key]}
+                            </option>
+                          ))}
+                        </select>
                       </td>
 
                       {/* 4. Giro (Style) */}
@@ -496,11 +649,47 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
                         </div>
                       </td>
 
-                      {/* 7. Lead Score Dynamic */}
+                      {/* 7. Lead Score Dynamic with Magic Wand */}
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-ai)', fontWeight: 700 }}>
-                          <Sparkles size={14} />
-                          <span>{lead.lead_score}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-ai)', fontWeight: 700 }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Sparkles size={14} />
+                            <span>{lead.lead_score}</span>
+                          </span>
+                          
+                          {isEditable && (
+                            <button
+                              type="button"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await handleRecalculateAIScore(lead);
+                              }}
+                              style={{
+                                background: 'rgba(168, 85, 247, 0.1)',
+                                border: '1px solid rgba(168, 85, 247, 0.2)',
+                                borderRadius: '4px',
+                                padding: '4px 6px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                color: 'var(--color-ai)',
+                                transition: 'all 0.2s',
+                                marginLeft: 'auto'
+                              }}
+                              title="Recalcular Score con IA"
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = 'rgba(168, 85, 247, 0.2)';
+                                e.currentTarget.style.transform = 'scale(1.1)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = 'rgba(168, 85, 247, 0.1)';
+                                e.currentTarget.style.transform = 'scale(1)';
+                              }}
+                            >
+                              <Wand2 size={12} />
+                            </button>
+                          )}
                         </div>
                       </td>
 

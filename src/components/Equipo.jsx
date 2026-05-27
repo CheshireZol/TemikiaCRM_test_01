@@ -34,7 +34,7 @@ const statusLabels = {
   nuevo: "Nuevo",
   proceso_contacto: "En Proceso",
   contactado: "Contactado",
-  calificado: "Calificado (IA)",
+  calificado: "Calificado",
   propuesta: "Propuesta",
   ganado: "Ganado",
   perdido: "Perdido",

@@ -78,14 +78,6 @@ const Login = ({ onLoginSuccess }) => {
         setRequires2FA(true);
         setSuccessMessage(`Se ha enviado un código de verificación de 6 dígitos a su correo corporativo ${data.email}.`);
       } else {
-        // Trigger confetti for successful premium login
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#2563EB', '#06B6D4', '#10B981']
-        });
-        
         onLoginSuccess(data.user);
       }
     } catch (err) {
@@ -131,17 +123,7 @@ const Login = ({ onLoginSuccess }) => {
       }
 
       setSuccessMessage('¡Código verificado con éxito! Iniciando sesión...');
-      
-      confetti({
-        particleCount: 85,
-        spread: 75,
-        origin: { y: 0.6 },
-        colors: ['#2563EB', '#10B981', '#06B6D4']
-      });
-
-      setTimeout(() => {
-        onLoginSuccess(data.user);
-      }, 1200);
+      onLoginSuccess(data.user);
 
     } catch (err) {
       console.error(err);
@@ -198,28 +180,16 @@ const Login = ({ onLoginSuccess }) => {
 
       setSuccessMessage('¡Excelente! Contraseña actualizada con éxito.');
       
-      // Celebrate
-      confetti({
-        particleCount: 100,
-        spread: 100,
-        origin: { y: 0.6 },
-        colors: ['#10B981', '#06B6D4', '#3B82F6']
-      });
-
-      // Clear wizard states and force re-login or automatically log in?
-      // Autologin after change for seamless premium UX
-      setTimeout(() => {
-        if (data.user) {
-          onLoginSuccess(data.user);
-        } else {
-          // Fallback: Return to login form
-          setRequiresChange(false);
-          setPassword('');
-          setNewPassword('');
-          setConfirmPassword('');
-          setSuccessMessage('Inicie sesión con su nueva contraseña.');
-        }
-      }, 1500);
+      if (data.user) {
+        onLoginSuccess(data.user);
+      } else {
+        // Fallback: Return to login form
+        setRequiresChange(false);
+        setPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setSuccessMessage('Inicie sesión con su nueva contraseña.');
+      }
 
     } catch (err) {
       console.error(err);

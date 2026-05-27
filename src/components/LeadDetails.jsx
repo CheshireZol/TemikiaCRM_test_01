@@ -14,7 +14,9 @@ import {
   Compass,
   RefreshCw,
   Check,
-  Printer
+  Printer,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { 
@@ -201,7 +203,8 @@ const LeadDetails = ({ leadId, user, onClose, onSaveSuccess }) => {
     pais: '',
     notas: '',
     ficha_prospeccion: '',
-    canal_preferido: 'whatsapp'
+    canal_preferido: 'whatsapp',
+    asistente_ia_activo: false
   });
 
   // Load giros & team members dynamic options once
@@ -266,7 +269,8 @@ const LeadDetails = ({ leadId, user, onClose, onSaveSuccess }) => {
           pais: data.pais || '',
           notas: data.notas || '',
           ficha_prospeccion: data.ficha_prospeccion || '',
-          canal_preferido: data.canal_preferido || 'whatsapp'
+          canal_preferido: data.canal_preferido || 'whatsapp',
+          asistente_ia_activo: data.asistente_ia_activo === true
         });
       } catch (err) {
         console.error(err);
@@ -348,15 +352,6 @@ ${strategy.integracionesRecomendadas.map(t => `- ${t}`).join('\n')}
 ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
 
     setForm(prev => ({ ...prev, ficha_prospeccion: formattedText }));
-    
-    // Automatically trigger visual alert
-    confetti({
-      particleCount: 50,
-      angle: 60,
-      spread: 55,
-      origin: { x: 0.2, y: 0.8 },
-      colors: ['#06B6D4', '#2563EB']
-    });
   };
 
   // Save changes via PUT request to Express
@@ -465,7 +460,8 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
       ? webSearchList.map(url => {
           try {
             const domain = new URL(url).hostname;
-            return `• <a href="${url}" target="_blank" style="color:#0ea5e9; text-decoration:underline;">${domain}</a><span class="text-slate-400"> (${url})</span>`;
+            const truncatedUrl = url.length > 55 ? `${url.substring(0, 52)}...` : url;
+            return `• <a href="${url}" target="_blank" style="color:#0ea5e9; text-decoration:underline;">${domain}</a><span class="text-slate-400"> (${truncatedUrl})</span>`;
           } catch(e) {
             return `• ${url}`;
           }
@@ -968,6 +964,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
     return '';
   };
 
+  const isEditable = !lead || !lead.miembro_id || lead.miembro_id === '' || (user && lead.miembro_id === user.miembroId);
   const mapEmbedUrl = getEmbedMapUrl();
 
   return (
@@ -1044,6 +1041,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
 
         {/* Drawer Body */}
         <div className="drawer-body">
+          <fieldset disabled={!isEditable} style={{ border: 'none', padding: 0, margin: 0, width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: 'transparent' }}>
           {/* AI Metrics quick summary bar */}
           <div style={{ 
             display: 'flex', 
@@ -1083,28 +1081,83 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
             <span className="drawer-section-title">Información de Ventas</span>
             
             <div className="properties-grid">
+              <div className="property-item" style={{ gridColumn: 'span 2', marginBottom: '8px' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  backgroundColor: form.asistente_ia_activo ? 'rgba(168, 85, 247, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                  border: form.asistente_ia_activo ? '1px solid rgba(168, 85, 247, 0.25)' : '1px solid rgba(255, 255, 255, 0.06)',
+                  transition: 'all 0.3s ease'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Sparkles size={16} style={{ color: form.asistente_ia_activo ? 'var(--color-ai, #a855f7)' : 'var(--text-secondary)' }} />
+                    <div style={{ textAlign: 'left' }}>
+                      <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Asistente IA Temikia</p>
+                      <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-secondary)' }}>Activa o desactiva la automatización inteligente para este lead</p>
+                    </div>
+                  </div>
+                  
+                  <button
+                    type="button"
+                    disabled={!isEditable}
+                    onClick={() => {
+                      if (!isEditable) return;
+                      setForm(prev => ({ ...prev, asistente_ia_activo: !prev.asistente_ia_activo }));
+                    }}
+                    style={{
+                      background: form.asistente_ia_activo ? 'var(--color-ai, #a855f7)' : 'rgba(255, 255, 255, 0.1)',
+                      border: 'none',
+                      borderRadius: '20px',
+                      width: '44px',
+                      height: '24px',
+                      position: 'relative',
+                      cursor: isEditable ? 'pointer' : 'not-allowed',
+                      opacity: isEditable ? 1 : 0.6,
+                      transition: 'all 0.3s ease',
+                      padding: 0
+                    }}
+                  >
+                    <span style={{
+                      display: 'block',
+                      width: '18px',
+                      height: '18px',
+                      backgroundColor: '#fff',
+                      borderRadius: '50%',
+                      position: 'absolute',
+                      top: '3px',
+                      left: form.asistente_ia_activo ? '23px' : '3px',
+                      transition: 'all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.4)'
+                    }} />
+                  </button>
+                </div>
+              </div>
+
               <div className="property-item">
-                <label className="property-label">Estatus del Pipeline</label>
+                <label className="property-label">Estatus</label>
                 <select name="estatus" value={form.estatus} onChange={handleChange} className="property-input">
                   <option value="nuevo">Nuevo</option>
-                  <option value="proceso_contacto">En Proceso de Contacto</option>
+                  <option value="proceso_contacto">En Proceso</option>
                   <option value="contactado">Contactado</option>
                   <option value="calificado">Calificado</option>
                   <option value="propuesta">Propuesta</option>
                   <option value="ganado">Ganado</option>
                   <option value="perdido">Perdido</option>
-                  <option value="descalificado">Descalificado / Sin Perfil</option>
-                  <option value="datos_invalidos">Datos Inválidos / Inalcanzable</option>
-                  <option value="cerrado_inexistente">Cerrado / Inexistente</option>
+                  <option value="descalificado">Descalificado</option>
+                  <option value="datos_invalidos">Datos Inválidos</option>
+                  <option value="cerrado_inexistente">Cerrado</option>
                 </select>
               </div>
 
               <div className="property-item">
-                <label className="property-label">Prioridad Comercial</label>
+                <label className="property-label">Prioridad</label>
                 <select name="prioridad" value={form.prioridad} onChange={handleChange} className="property-input">
-                  <option value="alta">Alta prioridad</option>
-                  <option value="media">Media prioridad</option>
-                  <option value="baja">Baja prioridad</option>
+                  <option value="alta">Alta</option>
+                  <option value="media">Media</option>
+                  <option value="baja">Baja</option>
                 </select>
               </div>
 
@@ -1242,28 +1295,85 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
                     </span>
                   </div>
                   
-                  <select 
-                    value={selectedTemplateIndex} 
-                    onChange={(e) => setSelectedTemplateIndex(Number(e.target.value))} 
-                    className="property-input"
-                    style={{ 
-                      width: '100%', 
-                      fontSize: '12.5px', 
-                      padding: '6px 10px', 
-                      height: 'auto',
-                      borderRadius: '8px',
-                      backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                      borderColor: 'rgba(255, 255, 255, 0.12)'
-                    }}
-                  >
-                    {(WHATSAPP_TEMPLATES[getGiroCategory(lead?.giro_nombre, form.estilo)] || WHATSAPP_TEMPLATES["Otros (Genérico)"]).map((tmpl, idx) => (
-                      <option key={idx} value={idx}>
-                        Mensaje #{idx + 1}: {tmpl.substring(0, 48).trim()}...
-                      </option>
-                    ))}
-                  </select>
+                  {(() => {
+                    const templates = WHATSAPP_TEMPLATES[getGiroCategory(lead?.giro_nombre, form.estilo)] || WHATSAPP_TEMPLATES["Otros (Genérico)"];
+                    const totalTemplates = templates.length;
+                    const handlePrev = () => {
+                      setSelectedTemplateIndex((prev) => (prev - 1 + totalTemplates) % totalTemplates);
+                    };
+                    const handleNext = () => {
+                      setSelectedTemplateIndex((prev) => (prev + 1) % totalTemplates);
+                    };
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={handlePrev}
+                          className="btn btn-secondary"
+                          style={{
+                            padding: '6px 12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '8px',
+                            backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            color: 'var(--text-primary)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                          title="Mensaje Anterior"
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                        
+                        <div style={{
+                          flex: 1,
+                          textAlign: 'center',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          backgroundColor: 'rgba(15, 23, 42, 0.5)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          fontWeight: '500',
+                          minHeight: '34px'
+                        }}>
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '12.5px', fontWeight: '600' }}>
+                            #{selectedTemplateIndex + 1}
+                          </span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 'normal', opacity: 0.7 }}>
+                            de {totalTemplates}
+                          </span>
+                        </div>
 
-                  <div style={{ 
+                        <button
+                          type="button"
+                          onClick={handleNext}
+                          className="btn btn-secondary"
+                          style={{
+                            padding: '6px 12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '8px',
+                            backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            color: 'var(--text-primary)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                          title="Siguiente Mensaje"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+                    );
+                  })()}
+
+                   <div style={{ 
                     marginTop: '8px', 
                     fontSize: '11.5px', 
                     color: 'var(--text-secondary)',
@@ -1271,7 +1381,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
                     padding: '8px 10px',
                     borderRadius: '6px',
                     borderLeft: '2px solid var(--color-success)',
-                    maxHeight: '120px',
+                    maxHeight: '190px',
                     overflowY: 'auto',
                     fontStyle: 'italic',
                     whiteSpace: 'pre-wrap',
@@ -1431,12 +1541,12 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
                         e.currentTarget.style.transform = 'none';
                       }}
                     >
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden', textAlign: 'left' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-primary)' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden', textAlign: 'left', minWidth: 0, flex: 1 }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {domain}
                         </span>
                         <span style={{ fontSize: '11px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {url}
+                          {url.length > 55 ? `${url.substring(0, 52)}...` : url}
                         </span>
                       </div>
                       <ExternalLink size={13} style={{ color: 'var(--text-muted)', flexShrink: 0, marginLeft: '8px' }} />
@@ -1648,7 +1758,8 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
             <span>Creado en: {formatDate(lead.created_at)}</span>
             <span>Última modificación: {formatDate(lead.updated_at)}</span>
           </div>
-        </div>
+        </fieldset>
+      </div>
 
         {/* Drawer Footer Actions */}
         <div className="drawer-footer" style={{ 
@@ -1662,7 +1773,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
             type="button"
             className="btn btn-danger" 
             onClick={() => setShowDeleteConfirm(true)}
-            disabled={isDeleting || isSaving}
+            disabled={isDeleting || isSaving || !isEditable}
             style={{ 
               justifySelf: 'start', 
               display: 'flex', 
@@ -1675,7 +1786,9 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
               minWidth: 'auto',
               backgroundColor: '#EF4444',
               borderColor: '#EF4444',
-              color: '#FFFFFF'
+              color: '#FFFFFF',
+              opacity: isEditable ? 1 : 0.4,
+              cursor: isEditable ? 'pointer' : 'not-allowed'
             }}
             title="Eliminar Prospecto"
           >
@@ -1705,13 +1818,15 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
           <button 
             className="btn btn-primary" 
             onClick={handleSave}
-            disabled={isSaving || isDeleting}
+            disabled={isSaving || isDeleting || !isEditable}
             style={{ 
               justifySelf: 'end',
               display: 'flex', 
               alignItems: 'center', 
               gap: '8px',
               transition: 'all 0.3s ease',
+              opacity: isEditable ? 1 : 0.5,
+              cursor: isEditable ? 'pointer' : 'not-allowed',
               ...(saveStatus === 'success' ? {
                 background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                 borderColor: '#10B981',
