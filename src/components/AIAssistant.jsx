@@ -376,7 +376,7 @@ ESTADO DEL LEAD SCORE: ${selectedLead.lead_score}/100`;
         {/* Active Workspace summary */}
         {selectedLead ? (
           <div className="card ai-card-glow" style={{ minHeight: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', width: '100%' }}>
+            <div className="ai-lead-header">
               <div style={{ flex: 1, minWidth: 0 }}>
                 <span className="badge" style={{ backgroundColor: 'rgba(6, 182, 212, 0.1)', color: 'var(--color-ai)', fontSize: '11px', marginBottom: '8px', display: 'inline-block' }}>
                   PROSPECTO BAJO ANÁLISIS IA
@@ -392,7 +392,7 @@ ESTADO DEL LEAD SCORE: ${selectedLead.lead_score}/100`;
                 }}>
                   {selectedLead.nombre}
                 </h3>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '13px', color: 'var(--text-secondary)', flexWrap: 'wrap', rowGap: '4px' }}>
                   <span>Giro: <strong>{selectedLead.estilo || 'No clasificado'}</strong></span>
                   <span>•</span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -534,7 +534,7 @@ ESTADO DEL LEAD SCORE: ${selectedLead.lead_score}/100`;
                 <MessageSquare size={18} style={{ color: 'var(--color-ai)' }} />
                 <span className="ai-tool-title">Primer Abordaje Comercial IA</span>
               </div>
-              <span className="ai-tool-description">Seleccione el canal para generar el script de comunicación adaptado</span>
+              <span className="ai-tool-description">Seleccione el canal para generar el script</span>
             </div>
 
             {/* Channels tab bar */}
@@ -582,13 +582,13 @@ ESTADO DEL LEAD SCORE: ${selectedLead.lead_score}/100`;
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
               <button className="btn btn-secondary" onClick={handleCopyText}>
                 {isCopied ? <Check size={16} style={{ color: 'var(--color-success)' }} /> : <Copy size={16} />}
-                <span>{isCopied ? '¡Copiado!' : 'Copiar Texto'}</span>
+                <span>{isCopied ? '¡Copiado!' : 'Copiar'}</span>
               </button>
 
               {activeChannel === 'whatsapp' && (
                 <button className="btn btn-ai" onClick={handleSendWhatsapp}>
                   <Send size={16} />
-                  <span>Enviar por WhatsApp</span>
+                  <span>Enviar WhatsApp</span>
                 </button>
               )}
 
@@ -675,7 +675,7 @@ ESTADO DEL LEAD SCORE: ${selectedLead.lead_score}/100`;
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '8px' }}>
+            <div className="ai-strategy-footer" style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '8px' }}>
               <button 
                 className="btn btn-primary" 
                 onClick={handleSaveStrategyToDb}
@@ -683,15 +683,112 @@ ESTADO DEL LEAD SCORE: ${selectedLead.lead_score}/100`;
                 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
               >
                 <Cpu size={16} />
-                <span>{isSavingStrategy ? 'Guardando en DB...' : 'Guardar Propuesta en Ficha del Cliente'}</span>
+                <span>{isSavingStrategy ? 'Guardando en DB...' : 'Guardar Propuesta'}</span>
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Col 2: High Priority leads suggestions */}
+      {/* Col 2: High Priority leads suggestions & Scoring Guide */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {/* AI Score Guide Cheat Sheet */}
+        <div className="card" style={{ minHeight: 'auto', backgroundColor: 'var(--color-brand-dark)', color: 'var(--text-white)', border: 'none' }}>
+          <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '14px', fontWeight: 700, color: 'var(--text-white)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Cpu size={16} style={{ color: 'var(--color-ai)' }} />
+            <span>Guía de Scoring Temikia (v3)</span>
+          </h4>
+          <p style={{ fontSize: '11.5px', color: '#94A3B8', marginTop: '4px' }}>
+            El Agente IA califica la madurez digital del prospecto en tiempo real basándose en 6 dimensiones ponderadas:
+          </p>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11.5px', marginTop: '12px', borderTop: '1px solid #1E293B', paddingTop: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #1E293B', paddingBottom: '4px', flexWrap: 'wrap', gap: '8px' }}>
+              <span style={{ fontWeight: 600 }}>1. Contactabilidad e Identificación</span>
+              <strong style={{ color: 'var(--color-ai)' }}>Máx 25 pts</strong>
+            </div>
+            <div style={{ paddingLeft: '8px', color: '#94A3B8', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={getIlluminateStyle(hasWa)}>• WhatsApp Directo</span>
+                <span style={getIlluminateStyle(hasWa)}>+8 pts</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={getIlluminateStyle(hasEmail)}>• Correo Electrónico</span>
+                <span style={getIlluminateStyle(hasEmail)}>+8 pts</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={getIlluminateStyle(hasPhone)}>• Teléfono Registrado</span>
+                <span style={getIlluminateStyle(hasPhone)}>+4 pts</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={getIlluminateStyle(hasContactPerson)}>• Persona de Contacto</span>
+                <span style={getIlluminateStyle(hasContactPerson)}>+5 pts</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #1E293B', paddingBottom: '4px', marginTop: '4px', flexWrap: 'wrap', gap: '8px' }}>
+              <span style={{ fontWeight: 600 }}>2. Calidad y Perfilado</span>
+              <strong style={{ color: 'var(--color-ai)' }}>Máx 10 pts</strong>
+            </div>
+            <div style={{ paddingLeft: '8px', color: '#94A3B8', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={getIlluminateStyle(hasDetailedNotes)}>• Notas extensas (&gt;20 carac.)</span>
+                <span style={getIlluminateStyle(hasDetailedNotes)}>+5 pts</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={getIlluminateStyle(hasPhysicalAddress)}>• Dirección física registrada</span>
+                <span style={getIlluminateStyle(hasPhysicalAddress)}>+5 pts</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #1E293B', paddingBottom: '4px', marginTop: '4px', flexWrap: 'wrap', gap: '8px' }}>
+              <span style={{ fontWeight: 600 }}>3. Tráfico y Rating (Google Maps)</span>
+              <strong style={{ color: 'var(--color-ai)' }}>Máx 20 pts</strong>
+            </div>
+            <div style={{ paddingLeft: '8px', color: '#94A3B8', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={getIlluminateStyle(reviewsCount > 0)}>• Opiniones (&gt;100 / 25-100 / &gt;0)</span>
+                <span style={getIlluminateStyle(reviewsCount > 0)}>
+                  {reviewsGreater100 ? '+12 pts' : (reviewsBetween25And100 ? '+8 pts' : (reviewsGreater0 ? '+4 pts' : '+12 / +8 / +4 pts'))}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={getIlluminateStyle(totalScore > 0)}>• Rating de Estrellas (★ &gt;= 4.2 / &gt;0)</span>
+                <span style={getIlluminateStyle(totalScore > 0)}>
+                  {ratingHigh ? '+8 pts' : (ratingMed ? '+4 pts' : '+8 / +4 pts')}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #1E293B', paddingBottom: '4px', marginTop: '4px', flexWrap: 'wrap', gap: '8px' }}>
+              <span style={{ fontWeight: 600 }}>4. Infraestructura y Redes</span>
+              <strong style={{ color: 'var(--color-ai)' }}>Máx 25 pts</strong>
+            </div>
+            <div style={{ paddingLeft: '8px', color: '#94A3B8', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={getIlluminateStyle(hasWebsite)}>• Sitio Web Corporativo Activo</span>
+                <span style={getIlluminateStyle(hasWebsite)}>+15 pts</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={getIlluminateStyle(socialCount > 0)}>• Ecosistema Meta (2+ redes / 1 red)</span>
+                <span style={getIlluminateStyle(socialCount > 0)}>
+                  {hasSocials2 ? '+10 pts' : (hasSocials1 ? '+5 pts' : '+10 / +5 pts')}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap', gap: '8px' }}>
+              <span style={getIlluminateStyle(hasWebSearch)}>5. Huella Digital (web_search)</span>
+              <strong style={hasWebSearch ? getIlluminateStyle(true) : { color: 'var(--color-ai)' }}>+10 pts</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap', gap: '8px' }}>
+              <span style={getIlluminateStyle(hasCompetitors)}>6. Presión Competitiva</span>
+              <strong style={hasCompetitors ? getIlluminateStyle(true) : { color: 'var(--color-ai)' }}>+10 pts</strong>
+            </div>
+          </div>
+        </div>
+
+        {/* Active Assistant Leads Card */}
         <div className="card" style={{ minHeight: 'auto' }}>
           <div>
             <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -717,11 +814,11 @@ ESTADO DEL LEAD SCORE: ${selectedLead.lead_score}/100`;
                     padding: '10px'
                   }}
                 >
-                  <div className="activity-info" style={{ width: '85%' }}>
+                  <div className="activity-info" style={{ flex: 1, minWidth: 0 }}>
                     <span className="activity-name" style={{ fontSize: '12.5px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{lead.nombre}</span>
                     <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{lead.estilo || 'Sin Categoría'}</span>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-ai)' }}>{lead.lead_score}</span>
                     <ChevronRight size={14} style={{ color: 'var(--text-muted)', marginLeft: '4px', verticalAlign: 'middle' }} />
                   </div>
@@ -732,102 +829,6 @@ ESTADO DEL LEAD SCORE: ${selectedLead.lead_score}/100`;
                 No hay leads con el Asistente IA activo en este momento.
               </p>
             )}
-          </div>
-        </div>
-
-        {/* AI Score Guide Cheat Sheet */}
-        <div className="card" style={{ minHeight: 'auto', backgroundColor: 'var(--color-brand-dark)', color: 'var(--text-white)', border: 'none' }}>
-          <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '14px', fontWeight: 700, color: 'var(--text-white)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Cpu size={16} style={{ color: 'var(--color-ai)' }} />
-            <span>Guía de Scoring Temikia (v3)</span>
-          </h4>
-          <p style={{ fontSize: '11.5px', color: '#94A3B8', marginTop: '4px' }}>
-            El Agente IA califica la madurez digital del prospecto en tiempo real basándose en 6 dimensiones ponderadas:
-          </p>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11.5px', marginTop: '12px', borderTop: '1px solid #1E293B', paddingTop: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #1E293B', paddingBottom: '4px' }}>
-              <span style={{ fontWeight: 600 }}>1. Contactabilidad e Identificación</span>
-              <strong style={{ color: 'var(--color-ai)' }}>Máx 25 pts</strong>
-            </div>
-            <div style={{ paddingLeft: '8px', color: '#94A3B8', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={getIlluminateStyle(hasWa)}>• WhatsApp Directo</span>
-                <span style={getIlluminateStyle(hasWa)}>+8 pts</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={getIlluminateStyle(hasEmail)}>• Correo Electrónico</span>
-                <span style={getIlluminateStyle(hasEmail)}>+8 pts</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={getIlluminateStyle(hasPhone)}>• Teléfono Registrado</span>
-                <span style={getIlluminateStyle(hasPhone)}>+4 pts</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={getIlluminateStyle(hasContactPerson)}>• Persona de Contacto</span>
-                <span style={getIlluminateStyle(hasContactPerson)}>+5 pts</span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #1E293B', paddingBottom: '4px', marginTop: '4px' }}>
-              <span style={{ fontWeight: 600 }}>2. Calidad y Perfilado</span>
-              <strong style={{ color: 'var(--color-ai)' }}>Máx 10 pts</strong>
-            </div>
-            <div style={{ paddingLeft: '8px', color: '#94A3B8', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={getIlluminateStyle(hasDetailedNotes)}>• Notas extensas (&gt;20 carac.)</span>
-                <span style={getIlluminateStyle(hasDetailedNotes)}>+5 pts</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={getIlluminateStyle(hasPhysicalAddress)}>• Dirección física registrada</span>
-                <span style={getIlluminateStyle(hasPhysicalAddress)}>+5 pts</span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #1E293B', paddingBottom: '4px', marginTop: '4px' }}>
-              <span style={{ fontWeight: 600 }}>3. Tráfico y Rating (Google Maps)</span>
-              <strong style={{ color: 'var(--color-ai)' }}>Máx 20 pts</strong>
-            </div>
-            <div style={{ paddingLeft: '8px', color: '#94A3B8', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={getIlluminateStyle(reviewsCount > 0)}>• Opiniones (&gt;100 / 25-100 / &gt;0)</span>
-                <span style={getIlluminateStyle(reviewsCount > 0)}>
-                  {reviewsGreater100 ? '+12 pts' : (reviewsBetween25And100 ? '+8 pts' : (reviewsGreater0 ? '+4 pts' : '+12 / +8 / +4 pts'))}
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={getIlluminateStyle(totalScore > 0)}>• Rating de Estrellas (★ &gt;= 4.2 / &gt;0)</span>
-                <span style={getIlluminateStyle(totalScore > 0)}>
-                  {ratingHigh ? '+8 pts' : (ratingMed ? '+4 pts' : '+8 / +4 pts')}
-                </span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #1E293B', paddingBottom: '4px', marginTop: '4px' }}>
-              <span style={{ fontWeight: 600 }}>4. Infraestructura y Redes</span>
-              <strong style={{ color: 'var(--color-ai)' }}>Máx 25 pts</strong>
-            </div>
-            <div style={{ paddingLeft: '8px', color: '#94A3B8', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={getIlluminateStyle(hasWebsite)}>• Sitio Web Corporativo Activo</span>
-                <span style={getIlluminateStyle(hasWebsite)}>+15 pts</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={getIlluminateStyle(socialCount > 0)}>• Ecosistema Meta (2+ redes / 1 red)</span>
-                <span style={getIlluminateStyle(socialCount > 0)}>
-                  {hasSocials2 ? '+10 pts' : (hasSocials1 ? '+5 pts' : '+10 / +5 pts')}
-                </span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-              <span style={getIlluminateStyle(hasWebSearch)}>5. Huella Digital (web_search)</span>
-              <strong style={hasWebSearch ? getIlluminateStyle(true) : { color: 'var(--color-ai)' }}>+10 pts</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-              <span style={getIlluminateStyle(hasCompetitors)}>6. Presión Competitiva (Clúster local)</span>
-              <strong style={hasCompetitors ? getIlluminateStyle(true) : { color: 'var(--color-ai)' }}>+10 pts</strong>
-            </div>
           </div>
         </div>
       </div>

@@ -1247,6 +1247,22 @@ body {
   overflow-y: auto;
 }
 
+.ai-lead-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
+}
+
+.ai-strategy-footer {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+  margin-top: 8px;
+}
+
 /* ==========================================================================
    MODAL DIALOG - CREACIÓN
    ========================================================================== */
@@ -1647,7 +1663,7 @@ body {
 
   .main-content {
     min-height: 100vh;
-    width: 100vw;
+    width: 100%;
     overflow-x: hidden;
     padding-top: 64px; /* Offset the fixed mobile header */
   }
@@ -1869,6 +1885,31 @@ body {
   .ai-layout-grid {
     grid-template-columns: 1fr !important;
     gap: 16px !important;
+  }
+
+  .ai-lead-header {
+    flex-direction: column-reverse !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .ai-strategy-footer {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .card {
+    padding: 16px !important;
+    gap: 12px !important;
+  }
+
+  .btn {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    text-align: center;
+    padding: 8px 14px !important;
+    font-size: 13px !important;
   }
 
   .ai-output-box {

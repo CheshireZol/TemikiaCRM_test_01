@@ -416,15 +416,6 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
   const handlePrintFicha = () => {
     if (!lead) return;
     
-    // Grab all stylesheets and inline styles from the parent document to preserve formatting in dev and production
-    const parentStylesheets = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
-      .map(link => `<link rel="stylesheet" href="${link.href}">`)
-      .join('\n');
-
-    const parentStyles = Array.from(document.querySelectorAll('style'))
-      .map(style => `<style>${style.innerHTML}</style>`)
-      .join('\n');
-
     const suggestedProducts = getSuggestedProducts(lead, form);
     
     // Format dates to friendly Spanish format
@@ -450,7 +441,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
       .map(key => {
         const url = parsedRrss[key].trim();
         const label = key.charAt(0).toUpperCase() + key.slice(1);
-        return `• <a href="${url}" target="_blank" style="color:#0ea5e9; text-decoration:underline; word-break:break-all;"><strong>${label}</strong>: ${url}</a>`;
+        return `• <a href="${url}" target="_blank" style="color:#0891b2; text-decoration:underline; word-break:break-all;"><strong>${label}</strong>: ${url}</a>`;
       })
       .join('<br/>') || 'Ninguna identificada';
 
@@ -461,7 +452,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
           try {
             const domain = new URL(url).hostname;
             const truncatedUrl = url.length > 55 ? `${url.substring(0, 52)}...` : url;
-            return `• <a href="${url}" target="_blank" style="color:#0ea5e9; text-decoration:underline;">${domain}</a><span class="text-slate-400"> (${truncatedUrl})</span>`;
+            return `• <a href="${url}" target="_blank" style="color:#0891b2; text-decoration:underline;">${domain}</a><span style="color:#94a3b8;"> (${truncatedUrl})</span>`;
           } catch(e) {
             return `• ${url}`;
           }
@@ -475,292 +466,612 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
       : [];
     
     const similaresHtml = relatedResults.length > 0
-      ? relatedResults.map(item => `• <strong>${item.title}</strong> - ${item.category || 'Similar'} <span class="text-yellow-600 font-bold">★ ${item.totalScore || item.total_score || '0'}</span> (${item.reviewsCount || item.reviews_count || 0} reseñas)`).join('<br/>')
+      ? relatedResults.map(item => `• <strong>${item.title}</strong> - ${item.category || 'Similar'} <span style="color:#d97706; font-weight:700;">★ ${item.totalScore || item.total_score || '0'}</span> (${item.reviewsCount || item.reviews_count || 0} reseñas)`).join('<br/>')
       : 'Ninguno catalogado en el sector';
 
-    // Premium Canva-styled HTML template matching html-radiografia_negocio.html
+    // Self-contained Premium Canva-styled CSS system (No external CSS dependencies or Tailwind required)
+    const printCss = `
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Manrope:wght@400;600;700;800&display=swap');
+      
+      * {
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        background-color: #f8fafc;
+        color: #0f172a;
+      }
+
+      body {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .print-container {
+        width: 100%;
+        max-width: 1024px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .sheet {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+        padding: 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      /* Header */
+      .header {
+        border-bottom: 2px solid #f1f5f9;
+        padding-bottom: 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+      }
+
+      .eyebrow {
+        font-size: 9.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        font-weight: 800;
+        color: #0891b2;
+      }
+
+      .title {
+        margin: 6px 0 6px;
+        font-size: 23px;
+        line-height: 1.2;
+        font-weight: 800;
+        font-family: 'Manrope', 'Inter', sans-serif;
+        color: #0f172a;
+      }
+
+      .meta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        font-size: 11.5px;
+        color: #64748b;
+      }
+
+      .meta-row strong {
+        color: #334155;
+        text-transform: uppercase;
+      }
+
+      .meta-row .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 10.5px;
+      }
+
+      .meta-row .rating {
+        color: #eab308;
+        font-weight: 600;
+      }
+
+      .brand {
+        text-align: right;
+      }
+
+      .brand-name {
+        font-size: 19px;
+        font-weight: 900;
+        color: #0f172a;
+        letter-spacing: -0.025em;
+      }
+
+      .brand-date {
+        margin-top: 3px;
+        font-size: 9.5px;
+        font-weight: 500;
+        color: #94a3b8;
+      }
+
+      /* KPIs */
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #f8fafc;
+        padding: 14px;
+      }
+
+      .kpi {
+        text-align: center;
+        border-right: 1px solid #e2e8f0;
+      }
+
+      .kpi:last-child {
+        border-right: none;
+      }
+
+      .kpi-label {
+        display: block;
+        font-size: 8.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-weight: 700;
+        color: #64748b;
+      }
+
+      .kpi-value-container {
+        margin-top: 5px;
+      }
+
+      .kpi-value {
+        font-size: 20px;
+        font-weight: 800;
+        color: #0f172a;
+      }
+
+      .kpi-value-max {
+        font-size: 11px;
+        color: #94a3b8;
+        font-weight: 700;
+      }
+
+      .badge {
+        display: inline-block;
+        margin-top: 3px;
+        padding: 3px 9px;
+        border-radius: 6px;
+        font-size: 9.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
+        background: #dbeafe;
+      }
+
+      .badge-gray {
+        border: 1px solid #cbd5e1;
+        color: #475569;
+        background: #f1f5f9;
+      }
+
+      /* Layout */
+      .columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      /* Card Section */
+      .card {
+        background: #f8fafc;
+        border-top: 4px solid #06b6d4;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.02);
+        padding: 14px;
+        border-left: 1px solid #e2e8f0;
+        border-right: 1px solid #e2e8f0;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .card-title {
+        margin: 0 0 4px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.10em;
+        font-weight: 800;
+        color: #0f172a;
+      }
+
+      .field-grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .field {
+        min-width: 0;
+      }
+
+      .field-border-top {
+        border-top: 1px solid #e2e8f0;
+        padding-top: 8px;
+        margin-top: 2px;
+      }
+
+      .label {
+        display: block;
+        font-size: 8.5px;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #64748b;
+        margin-bottom: 3px;
+      }
+
+      .value {
+        display: block;
+        font-size: 12px;
+        line-height: 1.35;
+        font-weight: 600;
+        color: #0f172a;
+        word-break: break-word;
+      }
+
+      .capitalize {
+        text-transform: capitalize;
+      }
+
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 11px;
+      }
+
+      .link {
+        color: #0891b2;
+        text-decoration: underline;
+        word-break: break-all;
+      }
+
+      /* Notes / Observaciones */
+      .muted-box {
+        min-height: 48px;
+        padding: 9px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #ffffff;
+        font-size: 11px;
+        line-height: 1.4;
+        color: #334155;
+        white-space: pre-wrap;
+        font-style: italic;
+      }
+
+      .field-grid-4 {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+      }
+
+      .meta-label {
+        font-size: 8px;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #94a3b8;
+        margin-bottom: 2px;
+        display: block;
+      }
+
+      .meta-value {
+        font-size: 10px;
+        font-weight: 600;
+        color: #475569;
+        font-family: ui-monospace, monospace;
+      }
+
+      /* Suggested Products */
+      .products-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .product {
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .product-category {
+        font-size: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 800;
+        color: #0891b2;
+      }
+
+      .product-title {
+        font-size: 12px;
+        font-weight: 800;
+        color: #0f172a;
+      }
+
+      .product-desc {
+        font-size: 9.5px;
+        line-height: 1.3;
+        color: #475569;
+        margin: 0;
+      }
+
+      /* Footer */
+      .footer {
+        margin-top: 6px;
+        padding-top: 10px;
+        border-top: 1px solid #e2e8f0;
+        text-align: center;
+        font-size: 9.5px;
+        color: #94a3b8;
+        font-weight: 500;
+      }
+
+      /* Print styles */
+      @media print {
+        @page {
+          size: letter;
+          margin: 0.5cm;
+        }
+
+        html, body {
+          background: #ffffff !important;
+          font-size: 9.5pt !important;
+          line-height: 1.15 !important;
+        }
+
+        .print-container {
+          max-width: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+
+        .sheet {
+          border: none !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+          gap: 14px !important;
+        }
+        
+        .card {
+          box-shadow: none !important;
+          page-break-inside: avoid;
+        }
+        
+        .kpi-grid {
+          background: #f8fafc !important;
+          print-color-adjust: exact !important;
+          -webkit-print-color-adjust: exact !important;
+        }
+      }
+    `;
+
     const htmlContent = `
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <title>Temikia - Ficha Técnica - ${form.nombre}</title>
-  <!-- Injected Parent Styles (Same-Origin & Dev friendly to bypass CSP script block) -->
-  ${parentStylesheets}
-  ${parentStyles}
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-    
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: #f1f5f9;
-    }
-
-    /* Optimización de impresión */
-    @media print {
-      @page {
-        size: letter;
-        margin: 0.4cm 0.4cm;
-      }
-      body {
-        background-color: #ffffff !important;
-        color: #0f172a !important;
-        font-size: 9.5pt !important;
-        line-height: 1.15 !important;
-      }
-      .print-container {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-      .print-gap {
-        gap: 0.4rem !important;
-      }
-      .print-card-padding {
-        padding: 0.6rem !important;
-      }
-      .print-lead-header {
-        margin-bottom: 0.5rem !important;
-        padding-bottom: 0.5rem !important;
-      }
-      * {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-        page-break-inside: avoid;
-      }
-    }
+    ${printCss}
   </style>
 </head>
-<body class="bg-slate-100 text-slate-900 min-h-screen">
-  <main class="max-w-5xl mx-auto p-2 sm:p-4 print-container">
+<body>
+  <main class="print-container">
     
     <!-- FICHA UNIFICADA (Estilo Canva de 1 página) -->
-    <article class="bg-slate-200 border border-slate-300 rounded-xl shadow-md p-3 sm:p-5 text-slate-800 print-gap flex flex-col gap-3.5">
+    <article class="sheet">
       
       <!-- CABECERA -->
-      <div class="border-b border-slate-300 pb-2 flex flex-row items-start justify-between gap-1 print-lead-header">
+      <div class="header">
         <div>
-          <span class="text-[9px] uppercase tracking-widest font-extrabold text-cyan-600">FICHA TÉCNICA DE PROSPECCIÓN</span>
-          <h1 class="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight leading-tight mt-0.5">${form.nombre}</h1>
+          <span class="eyebrow">FICHA TÉCNICA DE PROSPECCIÓN</span>
+          <h1 class="title">${form.nombre}</h1>
           
-          <div class="flex items-center gap-1.5 mt-0.5 text-[11px] text-slate-600">
-            <span class="font-bold uppercase text-slate-800">${lead.giro_nombre || form.estilo || 'Sin Categoría'}</span>
+          <div class="meta-row">
+            <strong>${lead.giro_nombre || form.estilo || 'Sin Categoría'}</strong>
             <span>•</span>
-            <span class="font-mono text-[10px]">GMaps ID: ${lead.negocios_gmaps_id || 'No Enlazado'}</span>
+            <span class="mono">GMaps ID: ${lead.negocios_gmaps_id || 'No Enlazado'}</span>
             <span>•</span>
-            <span class="flex items-center gap-0.5 text-yellow-600 font-semibold text-[10px]">
-              ★ <span class="text-slate-700">${lead.total_score ? lead.total_score + ' (' + (lead.reviews_count || 0) + ')' : '0 (0)'}</span>
-            </span>
+            <span class="rating">★ ${lead.total_score ? lead.total_score + ' (' + (lead.reviews_count || 0) + ')' : '0 (0)'}</span>
           </div>
         </div>
         
-        <div class="text-right">
-          <span class="text-base font-black tracking-tight text-slate-900">Temikia</span>
-          <p class="text-[9px] text-slate-500">Impreso el: <span class="font-medium">${fechaImpresion}</span></p>
+        <div class="brand">
+          <span class="brand-name">Temikia</span>
+          <p class="brand-date">Impreso el: <span>${fechaImpresion}</span></p>
         </div>
       </div>
 
       <!-- KPIS PRINCIPALES -->
-      <div class="grid grid-cols-3 gap-2 border border-slate-300 rounded-lg p-2 bg-slate-50">
-        <div class="text-center border-r border-slate-300">
-          <span class="text-[8px] font-bold text-slate-500 uppercase block tracking-wider">SCORE TEMIKIA</span>
-          <div class="mt-0.5">
-            <span class="text-lg font-black text-slate-900">${lead.lead_score || '0'}</span>
-            <span class="text-[10px] text-slate-400 font-bold">/100</span>
+      <div class="kpi-grid">
+        <div class="kpi">
+          <span class="kpi-label">SCORE TEMIKIA</span>
+          <div class="kpi-value-container">
+            <span class="kpi-value">${lead.lead_score || '0'}</span>
+            <span class="kpi-value-max">/100</span>
           </div>
         </div>
-        <div class="text-center border-r border-slate-300">
-          <span class="text-[8px] font-bold text-slate-500 uppercase block tracking-wider">ESTATUS PIPELINE</span>
-          <span class="text-[10px] font-extrabold uppercase bg-blue-100 text-blue-800 border border-blue-200 px-2 py-0.5 rounded inline-block mt-0.5">${(form.estatus || 'nuevo').toUpperCase()}</span>
+        <div class="kpi">
+          <span class="kpi-label">ESTATUS PIPELINE</span>
+          <div class="kpi-value-container">
+            <span class="badge">${(form.estatus || 'nuevo').toUpperCase()}</span>
+          </div>
         </div>
-        <div class="text-center">
-          <span class="text-[8px] font-bold text-slate-500 uppercase block tracking-wider">PRIORIDAD COMERCIAL</span>
-          <span class="text-[10px] font-extrabold uppercase bg-gray-100 text-slate-700 border border-slate-300 px-2 py-0.5 rounded inline-block mt-0.5">${(form.prioridad || 'baja').toUpperCase()} PRIORIDAD</span>
+        <div class="kpi">
+          <span class="kpi-label">PRIORIDAD COMERCIAL</span>
+          <div class="kpi-value-container">
+            <span class="badge badge-gray">${(form.prioridad || 'baja').toUpperCase()} PRIORIDAD</span>
+          </div>
         </div>
       </div>
 
-      <!-- GRID DE DOS COLUMNAS -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 print-gap">
+      <!-- COLUMNA ÚNICA DE DATOS APILADOS -->
+      <div class="stack">
         
-        <!-- COLUMNA IZQUIERDA -->
-        <div class="flex flex-col gap-3.5 print-gap">
-          
-          <!-- RADIOGRAFÍA -->
-          <div class="bg-slate-50 border-t-4 border-cyan-400 rounded-lg shadow-sm overflow-hidden print-card-padding p-3 flex flex-col gap-2">
-            <h3 class="text-[10px] font-extrabold text-slate-900 uppercase tracking-wider pb-1 border-b border-slate-200">
-              Radiografía Negocio
-            </h3>
-            <div class="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Canal Preferido</label>
-                <span class="text-xs text-slate-900 font-semibold mt-0.5 block capitalize">${form.canal_preferido}</span>
-              </div>
-              <div>
-                <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Ejecutivo Asignado</label>
-                <span class="text-xs text-slate-900 font-semibold mt-0.5 block">${lead.owner_nombre || 'Sin Asignar'}</span>
-              </div>
+        <!-- RADIOGRAFÍA -->
+        <div class="card">
+          <h3 class="card-title">Radiografía Negocio</h3>
+          <div class="field-grid-2">
+            <div class="field">
+              <span class="label">Canal Preferido</span>
+              <span class="value capitalize">${form.canal_preferido}</span>
+            </div>
+            <div class="field">
+              <span class="label">Ejecutivo Asignado</span>
+              <span class="value">${lead.owner_nombre || 'Sin Asignar'}</span>
             </div>
           </div>
-
-          <!-- DATOS CONTACTO -->
-          <div class="bg-slate-50 border-t-4 border-cyan-400 rounded-lg shadow-sm overflow-hidden print-card-padding p-3 flex flex-col gap-2">
-            <h3 class="text-[10px] font-extrabold text-slate-900 uppercase tracking-wider pb-1 border-b border-slate-200">
-              Datos de Contacto
-            </h3>
-            <div class="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Nombre del Contacto</label>
-                <span class="text-xs text-slate-900 font-semibold mt-0.5 block">${form.contacto_nombre || 'No provisto'}</span>
-              </div>
-              <div>
-                <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Puesto del Contacto</label>
-                <span class="text-xs text-slate-900 font-semibold mt-0.5 block">${form.contacto_puesto || 'No provisto'}</span>
-              </div>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-200">
-              <div>
-                <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Correos Electrónicos</label>
-                <span class="text-[11px] text-slate-900 font-mono block break-all mt-0.5">${emailsList}</span>
-              </div>
-              <div>
-                <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Teléfonos / WhatsApp</label>
-                <span class="text-[11px] text-slate-900 font-mono block break-all mt-0.5">${phonesList} / ${whatsappList}</span>
-              </div>
-            </div>
-          </div>
-
         </div>
 
-        <!-- COLUMNA DERECHA -->
-        <div class="flex flex-col gap-3.5 print-gap">
+        <!-- DATOS CONTACTO -->
+        <div class="card">
+          <h3 class="card-title">Datos de Contacto</h3>
+          <div class="field-grid-2">
+            <div class="field">
+              <span class="label">Nombre del Contacto</span>
+              <span class="value">${form.contacto_nombre || 'No provisto'}</span>
+            </div>
+            <div class="field">
+              <span class="label">Puesto del Contacto</span>
+              <span class="value">${form.contacto_puesto || 'No provisto'}</span>
+            </div>
+          </div>
           
-          <!-- UBICACIÓN -->
-          <div class="bg-slate-50 border-t-4 border-cyan-400 rounded-lg shadow-sm overflow-hidden print-card-padding p-3 flex flex-col gap-2">
-            <h3 class="text-[10px] font-extrabold text-slate-900 uppercase tracking-wider pb-1 border-b border-slate-200">
-              Ubicación Geográfica
-            </h3>
-            <div class="text-xs space-y-2">
-              <div>
-                <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Dirección Completa</label>
-                <p class="text-xs text-slate-900 font-medium leading-tight mt-0.5">${form.direccion1 || 'No provista'}</p>
-              </div>
-              
-              <div class="grid grid-cols-3 gap-2 pt-1 border-t border-slate-200">
-                <div class="col-span-2">
-                  <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Distrito / Colonia</label>
-                  <span class="text-xs text-slate-900 mt-0.5 block">No provisto</span>
-                </div>
-                <div>
-                  <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Código Postal</label>
-                  <span class="text-xs text-slate-900 font-mono mt-0.5 block">No provisto</span>
-                </div>
-              </div>
+          <div class="field-grid-2 field-border-top">
+            <div class="field">
+              <span class="label">Correos Electrónicos</span>
+              <span class="value mono">${emailsList}</span>
+            </div>
+            <div class="field">
+              <span class="label">Teléfonos / WhatsApp</span>
+              <span class="value mono">${phonesList} / ${whatsappList}</span>
+            </div>
+          </div>
+        </div>
 
-              <div class="grid grid-cols-3 gap-2 pt-1 border-t border-slate-200">
-                <div class="col-span-2">
-                  <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Ciudad / Delegación</label>
-                  <span class="text-xs text-slate-900 mt-0.5 block">${form.ciudad || 'No provista'}</span>
-                </div>
-                <div>
-                  <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Estado</label>
-                  <span class="text-xs text-slate-900 mt-0.5 block">${form.estado || 'No provisto'}</span>
-                </div>
-              </div>
-
-              <div class="pt-1 border-t border-slate-200">
-                <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Enlace Satelital de Google Maps (URL Completa)</label>
-                <a href="${lead.place_url || '#'}" target="_blank" class="text-[9px] text-cyan-700 hover:underline break-all font-mono block leading-tight mt-0.5">
-                  ${lead.place_url || 'No provisto'}
-                </a>
-              </div>
+        <!-- UBICACIÓN -->
+        <div class="card">
+          <h3 class="card-title">Ubicación Geográfica</h3>
+          <div class="field">
+            <span class="label">Dirección Completa</span>
+            <span class="value">${form.direccion1 || 'No provista'}</span>
+          </div>
+          
+          <div class="field-grid-2 field-border-top">
+            <div class="field">
+              <span class="label">Distrito / Colonia</span>
+              <span class="value">No provisto</span>
+            </div>
+            <div class="field">
+              <span class="label">Código Postal</span>
+              <span class="value mono">No provisto</span>
             </div>
           </div>
 
-          <!-- PRESENCIA DIGITAL -->
-          <div class="bg-slate-50 border-t-4 border-cyan-400 rounded-lg shadow-sm overflow-hidden print-card-padding p-3 flex flex-col gap-2">
-            <h3 class="text-[10px] font-extrabold text-slate-900 uppercase tracking-wider pb-1 border-b border-slate-200">
-              Presencia Digital y Redes
-            </h3>
-            <div class="text-xs space-y-2">
-              <div class="grid grid-cols-2 gap-2">
-                <div>
-                  <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Sitio Web Oficial</label>
-                  <span class="text-xs font-mono text-slate-900 break-all block mt-0.5">${form.sitio_web || 'No provisto'}</span>
-                </div>
-                <div>
-                  <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Redes Sociales</label>
-                  <div class="text-xs text-slate-900 leading-tight block mt-0.5">${socialNetworksHtml}</div>
-                </div>
-              </div>
-
-              <div class="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-200">
-                <div>
-                  <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Enlaces Búsqueda (Web Search)</label>
-                  <div class="text-[9.5px] text-slate-700 font-mono break-all leading-tight mt-0.5">${webSearchHtml}</div>
-                </div>
-                <div>
-                  <label class="text-[8.5px] uppercase font-bold text-slate-500 block">Competencia y Similares</label>
-                  <div class="text-[9.5px] text-slate-700 font-sans leading-tight mt-0.5">${similaresHtml}</div>
-                </div>
-              </div>
+          <div class="field-grid-2 field-border-top">
+            <div class="field">
+              <span class="label">Ciudad / Delegación</span>
+              <span class="value">${form.ciudad || 'No provista'}</span>
+            </div>
+            <div class="field">
+              <span class="label">Estado</span>
+              <span class="value">${form.estado || 'No provisto'}</span>
             </div>
           </div>
 
+          <div class="field-border-top">
+            <span class="label">Enlace Satelital de Google Maps</span>
+            <a href="${lead.place_url || '#'}" target="_blank" class="link mono" style="font-size: 10px; line-height: 1.2;">
+              ${lead.place_url || 'No provisto'}
+            </a>
+          </div>
+        </div>
+
+        <!-- PRESENCIA DIGITAL -->
+        <div class="card">
+          <h3 class="card-title">Presencia Digital y Redes</h3>
+          <div class="field-grid-2">
+            <div class="field">
+              <span class="label">Sitio Web Oficial</span>
+              <span class="value mono">${form.sitio_web || 'No provisto'}</span>
+            </div>
+            <div class="field">
+              <span class="label">Redes Sociales</span>
+              <div class="value" style="font-size: 11px; line-height: 1.35;">${socialNetworksHtml}</div>
+            </div>
+          </div>
+
+          <div class="field-grid-2 field-border-top">
+            <div class="field">
+              <span class="label">Enlaces Búsqueda (Web Search)</span>
+              <div class="value mono" style="font-size: 10.5px; line-height: 1.3;">${webSearchHtml}</div>
+            </div>
+            <div class="field">
+              <span class="label">Competencia y Similares</span>
+              <div class="value" style="font-size: 11px; line-height: 1.3;">${similaresHtml}</div>
+            </div>
+          </div>
         </div>
 
       </div>
 
       <!-- OBSERVACIONES -->
-      <div class="bg-slate-50 border-t-4 border-cyan-400 rounded-lg shadow-sm overflow-hidden print-card-padding p-3 flex flex-col gap-2.5">
-        <h3 class="text-[10px] font-extrabold text-slate-900 uppercase tracking-wider pb-1 border-b border-slate-200">
-          Ficha de Prospección e Internos
-        </h3>
+      <div class="card">
+        <h3 class="card-title">Ficha de Prospección e Internos</h3>
         
         <div>
-          <label class="text-[8.5px] uppercase font-bold text-slate-500 block mb-0.5">Notas / Observaciones del Lead</label>
-          <div class="text-[11px] text-slate-700 italic min-h-[45px] bg-white p-2 rounded border border-slate-200 leading-snug whitespace-pre-wrap">${form.notas || 'Sin anotaciones preliminares.'}</div>
+          <span class="label">Notas / Observaciones del Lead</span>
+          <div class="muted-box">${form.notas || 'Sin anotaciones preliminares.'}</div>
         </div>
 
-        <div class="grid grid-cols-4 gap-2 pt-2 border-t border-slate-200 text-[9px] text-slate-500 font-mono">
+        <div class="field-grid-4 field-border-top">
           <div>
-            <span class="uppercase block font-bold text-slate-400">Fecha de Creación</span>
-            <span class="text-slate-700">${fechaCreacion}</span>
+            <span class="meta-label">Fecha de Creación</span>
+            <span class="meta-value">${fechaCreacion}</span>
           </div>
           <div>
-            <span class="uppercase block font-bold text-slate-400">Última Actualización</span>
-            <span class="text-slate-700">${fechaActualizacion}</span>
+            <span class="meta-label">Última Actualización</span>
+            <span class="meta-value">${fechaActualizacion}</span>
           </div>
           <div>
-            <span class="uppercase block font-bold text-slate-400">Próximo Contacto At</span>
-            <span class="text-slate-700 italic">${lead.proximo_paso_at ? formatDate(lead.proximo_paso_at) : 'Null'}</span>
+            <span class="meta-label">Próximo Contacto At</span>
+            <span class="meta-value">${lead.proximo_paso_at ? formatDate(lead.proximo_paso_at) : 'Null'}</span>
           </div>
           <div>
-            <span class="uppercase block font-bold text-slate-400">Último Contacto At</span>
-            <span class="text-slate-700 italic">${lead.ultimo_contacto_at ? formatDate(lead.ultimo_contacto_at) : 'Null'}</span>
+            <span class="meta-label">Último Contacto At</span>
+            <span class="meta-value">${lead.ultimo_contacto_at ? formatDate(lead.ultimo_contacto_at) : 'Null'}</span>
           </div>
         </div>
       </div>
 
       <!-- OPORTUNIDADES DE VENTA Y PROPUESTA DE VALOR -->
-      <div class="bg-slate-50 border-t-4 border-cyan-500 rounded-lg shadow-sm overflow-hidden print-card-padding p-3 flex flex-col gap-2">
-        <h3 class="text-[10px] font-extrabold text-slate-900 uppercase tracking-wider pb-1 border-b border-slate-200">
-          Auditoría de Oportunidades y Propuesta de Valor (Temikia CRM Engine)
-        </h3>
-        <div class="grid grid-cols-2 gap-2 text-xs">
+      <div class="card">
+        <h3 class="card-title">Auditoría de Oportunidades y Propuesta de Valor (Temikia CRM Engine)</h3>
+        <div class="products-grid">
           ${suggestedProducts.map(p => `
-            <div class="p-2 rounded border border-slate-200 bg-white flex flex-col gap-0.5">
-              <span class="text-[8px] font-bold text-cyan-600 uppercase block tracking-wide">${p.category}</span>
-              <span class="text-xs font-bold text-slate-800 block">${p.feature}</span>
-              <p class="text-[9.5px] text-slate-600 leading-tight block mt-0.5">${p.description}</p>
+            <div class="product">
+              <span class="product-category">${p.category}</span>
+              <span class="product-title">${p.feature}</span>
+              <p class="product-desc">${p.description}</p>
             </div>
           `).join('')}
         </div>
       </div>
 
       <!-- PIE DE PÁGINA -->
-      <footer class="text-center text-[9px] text-slate-500 pt-1.5 mt-0.5 border-t border-slate-300">
+      <footer class="footer">
         <p>© 2026 Temikia.com — Auditoría Comercial Integrada con Temikia. Toda la información es confidencial.</p>
       </footer>
 
@@ -780,38 +1091,21 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
     // Add self-printing script specifically for browser print
     const printHtml = htmlContent.replace('</body>', `
       <script>
-        async function waitForPrintAssets() {
-          const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
-
-          await Promise.all(links.map(link => {
-            return new Promise(resolve => {
-              if (link.sheet) return resolve();
-
-              link.onload = resolve;
-              link.onerror = resolve;
-
-              // Safe fallback timeout
-              setTimeout(resolve, 4000);
-            });
-          }));
-
+        async function startPrint() {
           if (document.fonts && document.fonts.ready) {
             try {
               await document.fonts.ready;
             } catch (e) {}
           }
-
-          // Force browser reflow
+          // Force browser layout reflow before showing the print dialog
           await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-          await new Promise(resolve => setTimeout(resolve, 800));
-        }
-
-        window.addEventListener('load', async function() {
-          await waitForPrintAssets();
+          await new Promise(resolve => setTimeout(resolve, 300));
           window.focus();
           window.print();
-          setTimeout(function() { window.close(); }, 1000);
-        });
+          setTimeout(function() { window.close(); }, 500);
+        }
+
+        window.addEventListener('load', startPrint);
       <\/script>
     </body>`);
 
