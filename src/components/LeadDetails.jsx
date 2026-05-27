@@ -964,7 +964,10 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
     return '';
   };
 
-  const isEditable = !lead || !lead.miembro_id || lead.miembro_id === '' || (user && lead.miembro_id === user.miembroId);
+  const SIN_ASIGNAR_UUID = 'd251a1fc-0188-4c32-9014-fd5a859b680b';
+  const isUnassigned = !lead || !lead.miembro_id || lead.miembro_id === '' || lead.miembro_id === SIN_ASIGNAR_UUID;
+  const isEditable = !lead || !lead.id || (user && form.miembro_id === user.miembroId);
+  const isAdvisorEditable = !lead || !lead.id || isUnassigned || (user && lead.miembro_id === user.miembroId);
   const mapEmbedUrl = getEmbedMapUrl();
 
   return (
@@ -1041,7 +1044,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
 
         {/* Drawer Body */}
         <div className="drawer-body">
-          <fieldset disabled={!isEditable} style={{ border: 'none', padding: 0, margin: 0, width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: 'transparent' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', backgroundColor: 'transparent' }}>
           {/* AI Metrics quick summary bar */}
           <div style={{ 
             display: 'flex', 
@@ -1138,7 +1141,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
 
               <div className="property-item">
                 <label className="property-label">Estatus</label>
-                <select name="estatus" value={form.estatus} onChange={handleChange} className="property-input">
+                <select name="estatus" value={form.estatus} onChange={handleChange} className="property-input" disabled={!isEditable}>
                   <option value="nuevo">Nuevo</option>
                   <option value="proceso_contacto">En Proceso</option>
                   <option value="contactado">Contactado</option>
@@ -1154,7 +1157,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
 
               <div className="property-item">
                 <label className="property-label">Prioridad</label>
-                <select name="prioridad" value={form.prioridad} onChange={handleChange} className="property-input">
+                <select name="prioridad" value={form.prioridad} onChange={handleChange} className="property-input" disabled={!isEditable}>
                   <option value="alta">Alta</option>
                   <option value="media">Media</option>
                   <option value="baja">Baja</option>
@@ -1163,7 +1166,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
 
               <div className="property-item">
                 <label className="property-label">Giro de Negocio</label>
-                <select name="giro_id" value={form.giro_id} onChange={handleChange} className="property-input">
+                <select name="giro_id" value={form.giro_id} onChange={handleChange} className="property-input" disabled={!isEditable}>
                   <option value="">Seleccione un Giro...</option>
                   {girosList.map(g => (
                     <option key={g.id} value={g.id}>{g.giro}</option>
@@ -1178,17 +1181,52 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
                   value={form.miembro_id} 
                   onChange={handleChange} 
                   className="property-input"
+                  disabled={!isAdvisorEditable}
                 >
                   <option value="">Seleccione un Ejecutivo...</option>
                   {miembros.map(m => (
                     <option key={m.miembro_id} value={m.miembro_id}>{m.nombre_completo}</option>
                   ))}
                 </select>
+
+                {/* Asignar a mí checkbox */}
+                {user && user.miembroId && lead && isUnassigned && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                    <input 
+                      type="checkbox"
+                      id="assign-to-me-checkbox"
+                      checked={form.miembro_id === user.miembroId}
+                      disabled={!isAdvisorEditable}
+                      onChange={(e) => {
+                        const nextId = e.target.checked ? user.miembroId : SIN_ASIGNAR_UUID;
+                        setForm(prev => ({ ...prev, miembro_id: nextId }));
+                      }}
+                      style={{ 
+                        cursor: isAdvisorEditable ? 'pointer' : 'not-allowed',
+                        width: '14px',
+                        height: '14px',
+                        accentColor: 'var(--color-primary)'
+                      }}
+                    />
+                    <label 
+                      htmlFor="assign-to-me-checkbox"
+                      style={{ 
+                        fontSize: '11px', 
+                        fontWeight: 600, 
+                        color: form.miembro_id === user.miembroId ? 'var(--color-primary)' : 'var(--text-secondary)',
+                        cursor: isAdvisorEditable ? 'pointer' : 'not-allowed',
+                        userSelect: 'none'
+                      }}
+                    >
+                      Asignar a mí
+                    </label>
+                  </div>
+                )}
               </div>
 
               <div className="property-item">
                 <label className="property-label">Canal Preferido</label>
-                <select name="canal_preferido" value={form.canal_preferido} onChange={handleChange} className="property-input">
+                <select name="canal_preferido" value={form.canal_preferido} onChange={handleChange} className="property-input" disabled={!isEditable}>
                   <option value="whatsapp">WhatsApp</option>
                   <option value="correo">Correo Electrónico</option>
                   <option value="telefono">Llamada Telefónica</option>
@@ -1198,6 +1236,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
           </div>
 
           {/* 2. DATOS DE CONTACTO */}
+          <fieldset disabled={!isEditable} style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: 'transparent', width: '100%' }}>
           <div className="drawer-section">
             <span className="drawer-section-title">Datos de Contacto</span>
             
@@ -1753,12 +1792,13 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
               ))}
             </div>
           </div>
+          </fieldset>
           
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <span>Creado en: {formatDate(lead.created_at)}</span>
             <span>Última modificación: {formatDate(lead.updated_at)}</span>
           </div>
-        </fieldset>
+        </div>
       </div>
 
         {/* Drawer Footer Actions */}
@@ -1818,15 +1858,15 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
           <button 
             className="btn btn-primary" 
             onClick={handleSave}
-            disabled={isSaving || isDeleting || !isEditable}
+            disabled={isSaving || isDeleting || !isAdvisorEditable}
             style={{ 
               justifySelf: 'end',
               display: 'flex', 
               alignItems: 'center', 
               gap: '8px',
               transition: 'all 0.3s ease',
-              opacity: isEditable ? 1 : 0.5,
-              cursor: isEditable ? 'pointer' : 'not-allowed',
+              opacity: isAdvisorEditable ? 1 : 0.5,
+              cursor: isAdvisorEditable ? 'pointer' : 'not-allowed',
               ...(saveStatus === 'success' ? {
                 background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                 borderColor: '#10B981',
