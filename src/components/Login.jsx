@@ -404,13 +404,6 @@ const Login = ({ onLoginSuccess }) => {
                2FA VERIFICATION FORM
                ======================================================== */
             <form onSubmit={handle2FAVerifySubmit} className="login-form">
-              <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                <ShieldCheck size={36} style={{ color: '#2563EB', margin: '0 auto 8px' }} />
-                <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
-                  Por seguridad, ingrese el código de 6 dígitos que enviamos a su correo.
-                </p>
-              </div>
-
               <div className="login-form-group">
                 <label className="login-form-label">Código de Verificación</label>
                 <div className="login-input-wrapper">

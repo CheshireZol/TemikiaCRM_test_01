@@ -88,7 +88,14 @@ app.use(
   })
 );
 
-
+// Strict Permissions-Policy to restrict browser features and reduce client-side attack surface
+app.use((req, res, next) => {
+  res.setHeader(
+    'Permissions-Policy',
+    'camera=(), microphone=(), geolocation=(self), bluetooth=(), payment=(), usb=()'
+  );
+  next();
+});
 
 // CORS Whitelisting based on FRONTEND_URL environment variable
 const allowedOrigins = [
@@ -107,8 +114,21 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+// Global body parsers with strict 100kb limits to prevent DoS RAM exhaustion,
+// bypassing the profile upload endpoint which requires a larger limit.
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/auth/profile/')) {
+    return next();
+  }
+  express.json({ limit: '100kb' })(req, res, next);
+});
+
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/auth/profile/')) {
+    return next();
+  }
+  express.urlencoded({ limit: '100kb', extended: true })(req, res, next);
+});
 
 // Helper: Recursively sanitize input strings to prevent Stored XSS
 function sanitizeInput(val, keyName = '') {
@@ -165,6 +185,22 @@ const authRateLimiter = rateLimit({
 app.use('/api/auth/login', authRateLimiter);
 app.use('/api/auth/verify-2fa', authRateLimiter);
 
+// General rate limiter for non-auth API endpoints to protect against scraping and DoS
+const apiRateLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 200, // limit each IP to 200 requests per minute
+  message: { error: 'Límite de peticiones de datos excedido. Intente nuevamente en 1 minuto.' }
+});
+
+// Apply rate limiter to all API endpoints, bypassing auth rate-limited endpoints
+app.use('/api/', (req, res, next) => {
+  const cleanPath = req.path.replace(/\/$/, '');
+  if (cleanPath === '/auth/login' || cleanPath === '/auth/verify-2fa') {
+    return next();
+  }
+  apiRateLimiter(req, res, next);
+});
+
 // Middleware: Authenticate requests using JWT tokens
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -174,10 +210,27 @@ function authenticateToken(req, res, next) {
     return res.status(401).json({ error: 'Acceso denegado: Token de sesión ausente.' });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET || 'temikia-secret-key-super-secure', (err, user) => {
+  jwt.verify(token, process.env.JWT_SECRET || 'temikia-secret-key-super-secure', async (err, user) => {
     if (err) {
       return res.status(403).json({ error: 'Sesión expirada o inválida. Por favor inicie sesión nuevamente.' });
     }
+
+    // Securely check if user is still active in PostgreSQL to support instant deactivation revocation
+    try {
+      const activeRes = await pool.query(
+        'SELECT activo, bloqueado_hasta FROM temikia_crm.miembros_login WHERE login_id = $1',
+        [user.loginId]
+      );
+      if (activeRes.rows.length === 0 || !activeRes.rows[0].activo) {
+        return res.status(403).json({ error: 'Acceso denegado: Esta cuenta se encuentra desactivada.' });
+      }
+      if (activeRes.rows[0].bloqueado_hasta && new Date(activeRes.rows[0].bloqueado_hasta) > new Date()) {
+        return res.status(403).json({ error: 'Acceso denegado: Esta cuenta se encuentra bloqueada temporalmente.' });
+      }
+    } catch (dbErr) {
+      console.error('Error verifying active status in token middleware:', dbErr);
+    }
+
     req.user = user;
     next();
   });
@@ -337,6 +390,11 @@ app.put('/api/equipo/:miembroId/intereses', authenticateToken, async (req, res) 
   try {
     const { miembroId } = req.params;
     const { intereses } = req.body;
+
+    // IDOR Protection: Ensure user is modifying their own interests or is an admin
+    if (req.user.miembroId !== miembroId && req.user.rol !== 'admin') {
+      return res.status(403).json({ error: 'Acceso denegado: No tiene permisos para modificar estos intereses.' });
+    }
 
     const query = `
       UPDATE temikia_crm.miembros_equipo
@@ -730,6 +788,11 @@ app.put('/api/prospectos/:id/estatus', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Field "estatus" is required.' });
     }
 
+    const validEstatus = ['nuevo', 'proceso_contacto', 'contactado', 'calificado', 'propuesta', 'ganado', 'perdido', 'descalificado', 'datos_invalidos', 'cerrado_inexistente'];
+    if (!validEstatus.includes(estatus.toLowerCase())) {
+      return res.status(400).json({ error: 'Field "estatus" value is invalid.' });
+    }
+
     const query = `
       UPDATE temikia_crm.prospectos_negocios
       SET estatus = $1, updated_at = NOW(), ultimo_contacto_at = NOW()
@@ -761,6 +824,11 @@ app.put('/api/prospectos/:id/prioridad', authenticateToken, async (req, res) => 
 
     if (!prioridad) {
       return res.status(400).json({ error: 'Field "prioridad" is required.' });
+    }
+
+    const validPrioridades = ['alta', 'media', 'baja'];
+    if (!validPrioridades.includes(prioridad.toLowerCase())) {
+      return res.status(400).json({ error: 'Field "prioridad" value must be one of: alta, media, baja.' });
     }
 
     const query = `
@@ -886,6 +954,34 @@ app.put('/api/prospectos/:id', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Field "nombre" is required.' });
     }
 
+    // 1. Validate UUID format for miembro_id
+    if (miembro_id) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(miembro_id)) {
+        return res.status(400).json({ error: 'Field "miembro_id" must be a valid UUID.' });
+      }
+    }
+
+    // 2. Validate enums for prioridad
+    const validPrioridades = ['alta', 'media', 'baja'];
+    if (prioridad && !validPrioridades.includes(prioridad.toLowerCase())) {
+      return res.status(400).json({ error: 'Field "prioridad" must be one of: alta, media, baja.' });
+    }
+
+    // 3. Validate enums for canal_preferido
+    const validCanales = ['whatsapp', 'correo', 'telefono'];
+    if (canal_preferido && !validCanales.includes(canal_preferido.toLowerCase())) {
+      return res.status(400).json({ error: 'Field "canal_preferido" must be one of: whatsapp, correo, telefono.' });
+    }
+
+    // 4. Validate enums for estatus
+    if (req.body.estatus) {
+      const validEstatus = ['nuevo', 'proceso_contacto', 'contactado', 'calificado', 'propuesta', 'ganado', 'perdido', 'descalificado', 'datos_invalidos', 'cerrado_inexistente'];
+      if (!validEstatus.includes(req.body.estatus.toLowerCase())) {
+        return res.status(400).json({ error: 'Field "estatus" is invalid.' });
+      }
+    }
+
     const query = `
       UPDATE temikia_crm.prospectos_negocios
       SET nombre = $1,
@@ -953,12 +1049,14 @@ app.put('/api/prospectos/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Prospect not found to edit.' });
     }
 
+    logBusinessActivity(req, 'update_prospect', result.rows[0].id, { nombre: result.rows[0].nombre });
+
     res.json({
       message: 'Prospect updated successfully.',
       prospect: result.rows[0]
     });
   } catch (error) {
-    console.error('Error saving prospect changes:', error);
+    logTechnicalError('PUT /api/prospectos/:id', 'Error saving prospect changes', error);
     res.status(500).json({ error: 'Failed to save edits to PostgreSQL database.' });
   }
 });
@@ -991,6 +1089,26 @@ app.post('/api/prospectos', authenticateToken, async (req, res) => {
 
     if (!nombre) {
       return res.status(400).json({ error: 'Field "nombre" is required.' });
+    }
+
+    // 1. Validate UUID format for miembro_id
+    if (miembro_id) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(miembro_id)) {
+        return res.status(400).json({ error: 'Field "miembro_id" must be a valid UUID.' });
+      }
+    }
+
+    // 2. Validate enums for prioridad
+    const validPrioridades = ['alta', 'media', 'baja'];
+    if (prioridad && !validPrioridades.includes(prioridad.toLowerCase())) {
+      return res.status(400).json({ error: 'Field "prioridad" must be one of: alta, media, baja.' });
+    }
+
+    // 3. Validate enums for canal_preferido
+    const validCanales = ['whatsapp', 'correo', 'telefono'];
+    if (canal_preferido && !validCanales.includes(canal_preferido.toLowerCase())) {
+      return res.status(400).json({ error: 'Field "canal_preferido" must be one of: whatsapp, correo, telefono.' });
     }
 
     const query = `
@@ -1032,12 +1150,14 @@ app.post('/api/prospectos', authenticateToken, async (req, res) => {
 
     const result = await pool.query(query, values);
 
+    logBusinessActivity(req, 'create_prospect', result.rows[0].id, { nombre: result.rows[0].nombre });
+
     res.status(201).json({
       message: 'New prospect created successfully.',
       prospect: result.rows[0]
     });
   } catch (error) {
-    console.error('Error creating prospect:', error);
+    logTechnicalError('POST /api/prospectos', 'Failed to insert new prospect into PostgreSQL', error);
     res.status(500).json({ error: 'Failed to insert new prospect into PostgreSQL.' });
   }
 });
@@ -1055,12 +1175,14 @@ app.delete('/api/prospectos/:id', authenticateToken, requireRole(['admin']), asy
       return res.status(404).json({ error: 'Prospect not found to delete.' });
     }
 
+    logBusinessActivity(req, 'delete_prospect', result.rows[0].id, { nombre: result.rows[0].nombre });
+
     res.json({
       message: 'Prospect deleted successfully.',
       prospect: result.rows[0]
     });
   } catch (error) {
-    console.error('Error deleting prospect:', error);
+    logTechnicalError('DELETE /api/prospectos/:id', 'Failed to delete record from PostgreSQL', error);
     res.status(500).json({ error: 'Failed to delete record from PostgreSQL.' });
   }
 });
@@ -1096,6 +1218,42 @@ async function auditLoginEvent({ login_id, miembro_id, email_login, evento, exit
     );
   } catch (err) {
     console.error('Audit logger failed:', err);
+  }
+}
+
+// Helper: Stream structured business audit logs to stdout (Docker/Easypanel captures and rotates this)
+function logBusinessActivity(req, action, targetId, details = null) {
+  try {
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      type: 'BUSINESS_AUDIT',
+      miembroId: req.user ? req.user.miembroId : 'Sistema',
+      rol: req.user ? req.user.rol : 'Sistema',
+      ip: req.ip || req.socket.remoteAddress || '127.0.0.1',
+      action,
+      targetId: targetId || null,
+      details
+    };
+    console.log(`[BUSINESS_AUDIT] ${JSON.stringify(logEntry)}`);
+  } catch (err) {
+    console.error('Business logger failed:', err);
+  }
+}
+
+// Helper: Stream structured technical error logs to stderr
+function logTechnicalError(endpoint, msg, err = null) {
+  try {
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      type: 'TECHNICAL_ERROR',
+      endpoint,
+      message: msg,
+      error: err ? err.message : null,
+      stack: err ? err.stack : null
+    };
+    console.error(`[TECHNICAL_ERROR] ${JSON.stringify(logEntry)}`);
+  } catch (logErr) {
+    console.error('Technical logger failed:', logErr);
   }
 }
 
@@ -1141,8 +1299,9 @@ app.post('/api/auth/login', async (req, res) => {
         req,
         detalle: 'Intento de inicio de sesión de usuario no registrado: ' + emailLower
       });
-      return res.status(404).json({ 
-        error: 'El usuario no existe en la base de datos de Temikia.' 
+      // Uniform generic error to prevent user existence enumeration
+      return res.status(401).json({ 
+        error: 'Usuario o contraseña incorrectos.' 
       });
     }
 
@@ -1213,8 +1372,8 @@ app.post('/api/auth/login', async (req, res) => {
 
       return res.status(401).json({ 
         error: newAttempts >= 5 
-          ? 'Contraseña incorrecta. Se ha superado el número de intentos permitidos y la cuenta ha sido bloqueada temporalmente por 15 minutos.' 
-          : `Contraseña incorrecta. Intento ${newAttempts} de 5 fallidos.`
+          ? 'Se ha superado el número de intentos permitidos y la cuenta ha sido bloqueada temporalmente por 15 minutos.' 
+          : 'Usuario o contraseña incorrectos.'
       });
     }
 
@@ -1335,7 +1494,7 @@ app.post('/api/auth/verify-2fa', async (req, res) => {
     );
 
     if (userRes.rows.length === 0) {
-      return res.status(404).json({ error: 'El usuario no existe.' });
+      return res.status(400).json({ error: 'Código de verificación incorrecto o expirado.' });
     }
 
     const user = userRes.rows[0];
@@ -1573,6 +1732,12 @@ app.post('/api/auth/change-password', async (req, res) => {
 app.get('/api/auth/profile/:miembroId', authenticateToken, async (req, res) => {
   try {
     const { miembroId } = req.params;
+
+    // IDOR Protection: Verify owner of profile or admin level access
+    if (req.user.miembroId !== miembroId && req.user.rol !== 'admin') {
+      return res.status(403).json({ error: 'Acceso denegado: No tiene permisos para consultar este perfil.' });
+    }
+
     const result = await pool.query(
       'SELECT miembro_id, nombre_completo, nombre_corto, telefono, email, pais, ciudad, zona_horaria, cargo, foto_url, notas FROM temikia_crm.miembros_equipo WHERE miembro_id = $1',
       [miembroId]
@@ -1590,9 +1755,15 @@ app.get('/api/auth/profile/:miembroId', authenticateToken, async (req, res) => {
 });
 
 // 13. PUT /api/auth/profile/:miembroId - Update team member profile details, including base64 foto_url
-app.put('/api/auth/profile/:miembroId', authenticateToken, async (req, res) => {
+app.put('/api/auth/profile/:miembroId', authenticateToken, express.json({ limit: '10mb' }), async (req, res) => {
   try {
     const { miembroId } = req.params;
+
+    // IDOR Protection: Verify owner of profile or admin level access
+    if (req.user.miembroId !== miembroId && req.user.rol !== 'admin') {
+      return res.status(403).json({ error: 'Acceso denegado: No tiene permisos para modificar este perfil.' });
+    }
+
     const { nombre_completo, nombre_corto, telefono, pais, ciudad, cargo, foto_url, notas } = req.body;
 
     const result = await pool.query(
@@ -1615,12 +1786,14 @@ app.put('/api/auth/profile/:miembroId', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Miembro no encontrado para actualizar.' });
     }
 
+    logBusinessActivity(req, 'update_profile', result.rows[0].miembro_id, { nombre: result.rows[0].nombre_completo });
+
     res.json({
       message: 'Perfil actualizado exitosamente en PostgreSQL.',
       profile: result.rows[0]
     });
   } catch (err) {
-    console.error('Error updating profile:', err);
+    logTechnicalError('PUT /api/auth/profile/:miembroId', 'Falla interna al actualizar perfil en base de datos', err);
     res.status(500).json({ error: 'Falla interna al actualizar perfil en base de datos.' });
   }
 });
