@@ -5,6 +5,7 @@ const NewLeadModal = ({ onClose, onSaveSuccess }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [girosList, setGirosList] = useState([]);
   const [miembros, setMiembros] = useState([]);
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const [form, setForm] = useState({
     nombre: '',
     estilo: '',
@@ -61,8 +62,17 @@ const NewLeadModal = ({ onClose, onSaveSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.nombre.trim()) {
-      alert('Por favor ingrese el Nombre Comercial del prospecto.');
+    setAttemptedSubmit(true);
+
+    const isNombreEmpty = !form.nombre.trim();
+    const isGiroEmpty = !form.giro_id;
+    const isDireccionEmpty = !form.direccion1.trim();
+    const isCiudadEmpty = !form.ciudad.trim();
+    const isEstadoEmpty = !form.estado.trim();
+    const isPaisEmpty = !form.pais.trim();
+
+    if (isNombreEmpty || isGiroEmpty || isDireccionEmpty || isCiudadEmpty || isEstadoEmpty || isPaisEmpty) {
+      alert('Por favor complete todos los campos obligatorios marcados en rojo.');
       return;
     }
 
@@ -118,7 +128,15 @@ const NewLeadModal = ({ onClose, onSaveSuccess }) => {
         <div className="modal-body">
             {/* 1. GENERAL INFO */}
             <div className="property-item">
-              <label className="property-label" style={{ fontWeight: 600 }}>Nombre Comercial del Negocio *</label>
+              <label 
+                className="property-label" 
+                style={{ 
+                  fontWeight: 600, 
+                  color: (attemptedSubmit && !form.nombre.trim()) ? 'var(--color-danger, #ef4444)' : 'var(--text-secondary)' 
+                }}
+              >
+                Nombre Comercial del Negocio *
+              </label>
               <input 
                 type="text" 
                 name="nombre" 
@@ -132,7 +150,14 @@ const NewLeadModal = ({ onClose, onSaveSuccess }) => {
 
             <div className="properties-grid">
               <div className="property-item">
-                <label className="property-label">Giro Comercial *</label>
+                <label 
+                  className="property-label"
+                  style={{ 
+                    color: (attemptedSubmit && !form.giro_id) ? 'var(--color-danger, #ef4444)' : 'var(--text-secondary)' 
+                  }}
+                >
+                  Giro Comercial *
+                </label>
                 <select 
                   name="giro_id" 
                   value={form.giro_id} 
@@ -225,21 +250,81 @@ const NewLeadModal = ({ onClose, onSaveSuccess }) => {
                 Ubicación Geográfica
               </span>
               <div className="property-item">
-                <label className="property-label">Dirección Completa</label>
-                <input type="text" name="direccion1" value={form.direccion1} onChange={handleChange} className="property-input" placeholder="Calle, Número, Colonia" />
+                <label 
+                  className="property-label"
+                  style={{ 
+                    color: (attemptedSubmit && !form.direccion1.trim()) ? 'var(--color-danger, #ef4444)' : 'var(--text-secondary)' 
+                  }}
+                >
+                  Dirección Completa *
+                </label>
+                <input 
+                  type="text" 
+                  name="direccion1" 
+                  value={form.direccion1} 
+                  onChange={handleChange} 
+                  className="property-input" 
+                  placeholder="Calle, Número, Colonia" 
+                  required
+                />
               </div>
               <div className="properties-grid" style={{ marginTop: '8px' }}>
                 <div className="property-item">
-                  <label className="property-label">Ciudad</label>
-                  <input type="text" name="ciudad" value={form.ciudad} onChange={handleChange} className="property-input" placeholder="Ej. CDMX" />
+                  <label 
+                    className="property-label"
+                    style={{ 
+                      color: (attemptedSubmit && !form.ciudad.trim()) ? 'var(--color-danger, #ef4444)' : 'var(--text-secondary)' 
+                    }}
+                  >
+                    Ciudad *
+                  </label>
+                  <input 
+                    type="text" 
+                    name="ciudad" 
+                    value={form.ciudad} 
+                    onChange={handleChange} 
+                    className="property-input" 
+                    placeholder="Ej. CDMX" 
+                    required
+                  />
                 </div>
                 <div className="property-item">
-                  <label className="property-label">Estado</label>
-                  <input type="text" name="estado" value={form.estado} onChange={handleChange} className="property-input" placeholder="Ej. CDMX" />
+                  <label 
+                    className="property-label"
+                    style={{ 
+                      color: (attemptedSubmit && !form.estado.trim()) ? 'var(--color-danger, #ef4444)' : 'var(--text-secondary)' 
+                    }}
+                  >
+                    Estado *
+                  </label>
+                  <input 
+                    type="text" 
+                    name="estado" 
+                    value={form.estado} 
+                    onChange={handleChange} 
+                    className="property-input" 
+                    placeholder="Ej. CDMX" 
+                    required
+                  />
                 </div>
                 <div className="property-item">
-                  <label className="property-label">País</label>
-                  <input type="text" name="pais" value={form.pais} onChange={handleChange} className="property-input" placeholder="Ej. México" />
+                  <label 
+                    className="property-label"
+                    style={{ 
+                      color: (attemptedSubmit && !form.pais.trim()) ? 'var(--color-danger, #ef4444)' : 'var(--text-secondary)' 
+                    }}
+                  >
+                    País *
+                  </label>
+                  <input 
+                    type="text" 
+                    name="pais" 
+                    value={form.pais} 
+                    onChange={handleChange} 
+                    className="property-input" 
+                    placeholder="Ej. México" 
+                    required
+                  />
                 </div>
               </div>
             </div>
