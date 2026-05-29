@@ -16,7 +16,9 @@ import {
   Check,
   Printer,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Plus,
+  Link
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { 
@@ -199,6 +201,9 @@ const LeadDetails = ({ leadId, user, onClose, onSaveSuccess }) => {
   const [hasWebsiteError, setHasWebsiteError] = useState(false);
   const [dynamicTemplate0, setDynamicTemplate0] = useState('');
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [showNewSocialForm, setShowNewSocialForm] = useState(false);
+  const [newSocialUrl, setNewSocialUrl] = useState('');
+  const [isPlusGreen, setIsPlusGreen] = useState(false);
 
   // Editable Form states
   const [form, setForm] = useState({
@@ -567,6 +572,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
       
       const payload = {
         ...form,
+        rrss: lead.rrss, // Save changes to social networks
         lead_score: lead.lead_score // Include the computed AI score
       };
 
@@ -615,6 +621,47 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  // Auto-map social network platform from URL
+  const mapSocialNetworkFromUrl = (url) => {
+    const lowerUrl = url.toLowerCase().trim();
+    if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.com')) return 'facebook';
+    if (lowerUrl.includes('instagram.com') || lowerUrl.includes('instagr.am')) return 'instagram';
+    if (lowerUrl.includes('tiktok.com')) return 'tiktok';
+    if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com')) return 'twitter';
+    if (lowerUrl.includes('linkedin.com')) return 'linkedin';
+    if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) return 'youtube';
+    if (lowerUrl.includes('pinterest.com')) return 'pinterest';
+    return 'otros';
+  };
+
+  // Handle adding a new social network url to lead.rrss
+  const handleAddSocialNetwork = () => {
+    if (!newSocialUrl.trim()) return;
+
+    const url = newSocialUrl.trim();
+    const platform = mapSocialNetworkFromUrl(url);
+    const currentRrss = parseJsonbField(lead.rrss);
+    const existingLinks = parseSocialLinks(currentRrss[platform]);
+
+    if (!existingLinks.includes(url)) {
+      currentRrss[platform] = [...existingLinks, url];
+    }
+
+    // Update lead state to trigger immediate re-render
+    setLead(prev => ({
+      ...prev,
+      rrss: currentRrss
+    }));
+
+    // Trigger momentary 1-second green state
+    setIsPlusGreen(true);
+    setTimeout(() => {
+      setIsPlusGreen(false);
+      setNewSocialUrl('');
+      setShowNewSocialForm(false);
+    }, 1000);
   };
 
   // Print PDF business profile ("Ficha Técnica / Radiografía del Negocio") using native browser print
@@ -2020,10 +2067,40 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
           </div>
 
           {/* 4. REDES SOCIALES */}
-          {Object.keys(rrss).some(k => parseSocialLinks(rrss[k]).length > 0) && (
-            <div className="drawer-section">
-              <span className="drawer-section-title">Canales Sociales Encontrados</span>
-              <div className="social-links-row">
+          <div className="drawer-section">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span className="drawer-section-title" style={{ margin: 0 }}>Redes Sociales</span>
+              {isAdvisorEditable && !showNewSocialForm && (
+                <button 
+                  type="button" 
+                  onClick={() => setShowNewSocialForm(true)} 
+                  style={{ 
+                    display: 'inline-flex', 
+                    alignItems: 'center', 
+                    gap: '4px', 
+                    fontSize: '12px', 
+                    color: 'var(--color-primary, #0891b2)', 
+                    background: 'none', 
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    transition: 'all 0.2s ease',
+                    border: '1px solid transparent'
+                  }}
+                  onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-main, #f8fafc)'; e.currentTarget.style.borderColor = 'var(--border-color, #e2e8f0)'; }}
+                  onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; }}
+                  title="Nueva Red Social"
+                >
+                  <Plus size={14} />
+                  <span>Nueva</span>
+                </button>
+              )}
+            </div>
+
+            {/* List of existing social networks */}
+            {Object.keys(rrss).some(k => parseSocialLinks(rrss[k]).length > 0) ? (
+              <div className="social-links-row" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: showNewSocialForm ? '12px' : '0' }}>
                 {Object.keys(rrss).reduce((acc, platform) => {
                   const links = parseSocialLinks(rrss[platform]);
                   links.forEach((url, idx) => {
@@ -2044,8 +2121,105 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
                   return acc;
                 }, [])}
               </div>
-            </div>
-          )}
+            ) : (
+              !showNewSocialForm && (
+                <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                  No se han registrado redes sociales para este prospecto.
+                </span>
+              )
+            )}
+
+            {/* Form to add a new social network (initially hidden) */}
+            {showNewSocialForm && (
+              <div style={{ 
+                marginTop: '8px', 
+                background: 'var(--bg-main, #f8fafc)', 
+                padding: '12px', 
+                borderRadius: '8px', 
+                border: '1px solid var(--border-color, #e2e8f0)',
+                animation: 'fadeIn 0.2s ease-out'
+              }}>
+                <label className="property-label" style={{ marginBottom: '6px', fontWeight: 500, fontSize: '11px' }}>Enlace de la Red Social</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <input 
+                      type="text" 
+                      value={newSocialUrl}
+                      onChange={(e) => setNewSocialUrl(e.target.value)}
+                      placeholder="Ej. https://facebook.com/pagina o https://instagram.com/usuario"
+                      className="property-input"
+                      style={{ width: '100%', margin: 0, paddingRight: '32px' }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddSocialNetwork();
+                        }
+                      }}
+                    />
+                    {newSocialUrl && (
+                      <button 
+                        type="button"
+                        onClick={() => setNewSocialUrl('')}
+                        style={{ 
+                          position: 'absolute', 
+                          right: '8px', 
+                          top: '50%', 
+                          transform: 'translateY(-50%)', 
+                          background: 'none', 
+                          border: 'none', 
+                          color: 'var(--text-secondary)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '2px'
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={handleAddSocialNetwork} 
+                    disabled={!newSocialUrl.trim()}
+                    className="btn"
+                    style={{ 
+                      padding: '10px 14px',
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      backgroundColor: isPlusGreen ? '#10B981' : 'var(--color-primary, #0891b2)',
+                      color: '#FFFFFF',
+                      borderColor: isPlusGreen ? '#10B981' : 'var(--color-primary, #0891b2)',
+                      borderRadius: '6px',
+                      transition: 'all 0.3s ease',
+                      cursor: newSocialUrl.trim() ? 'pointer' : 'not-allowed',
+                      opacity: newSocialUrl.trim() ? 1 : 0.6
+                    }}
+                    title="Agregar Red Social"
+                  >
+                    {isPlusGreen ? <Check size={16} /> : <Plus size={16} />}
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setShowNewSocialForm(false);
+                      setNewSocialUrl('');
+                    }}
+                    className="btn btn-secondary"
+                    style={{ 
+                      padding: '10px 12px',
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* BÚSQUEDAS WEB / ENLACES DE INTERÉS */}
           {webSearchLinks && webSearchLinks.length > 0 && (
