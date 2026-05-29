@@ -450,3 +450,26 @@ export const getSuggestedProducts = (lead, form) => {
   // Return the top 4 highly targeted recommendations
   return suggestions.slice(0, 4);
 };
+
+// 6. Decode JWT token payload in frontend
+export const decodeJwt = (token) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+};
+
+// 7. Check if a JWT token has expired
+export const isTokenExpired = (token) => {
+  const decoded = decodeJwt(token);
+  if (!decoded || !decoded.exp) return true;
+  const currentTime = Math.floor(Date.now() / 1000);
+  return decoded.exp < currentTime;
+};
+

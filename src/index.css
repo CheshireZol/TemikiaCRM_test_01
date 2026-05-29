@@ -1658,6 +1658,152 @@ body {
   margin-top: 8px;
 }
 
+/* Landing Welcome Screen Styles */
+.login-container.landing-mode {
+  width: 440px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.landing-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.landing-logo-ring-large {
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%);
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 40px rgba(6, 182, 212, 0.3);
+  margin-bottom: 12px;
+  animation: floatLogo 6s infinite ease-in-out;
+}
+
+@keyframes floatLogo {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+  100% { transform: translateY(0px); }
+}
+
+.landing-logo-img-large {
+  width: 86px;
+  height: 86px;
+  object-fit: contain;
+}
+
+.landing-title-large {
+  font-family: var(--font-title);
+  font-size: 32px;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: -0.8px;
+  margin: 0;
+}
+
+.landing-subtitle-large {
+  font-size: 15px;
+  color: #94A3B8;
+  letter-spacing: 0.2px;
+  margin: 0;
+}
+
+/* Frameless Card style for welcome landing screen */
+.login-card.landing-card-mode {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 0;
+}
+
+.login-card.landing-card-mode .login-footer {
+  border-top: none;
+  margin-top: 48px;
+}
+
+.login-footer a {
+  transition: color var(--transition-fast);
+}
+
+.login-footer a:hover {
+  color: var(--color-primary-hover) !important;
+  text-decoration: underline !important;
+}
+
+.landing-back-btn {
+  background: none;
+  border: none;
+  color: #94A3B8;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-main);
+  opacity: 0.75;
+}
+
+.landing-back-btn:hover {
+  color: #FFFFFF;
+  background-color: rgba(255, 255, 255, 0.05);
+  opacity: 1;
+}
+
+/* 6-Digit Segmented Code Inputs */
+.code-segmented-inputs {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.code-digit-input {
+  width: 48px;
+  height: 52px;
+  background-color: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  color: #FFFFFF;
+  font-family: var(--font-main);
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.code-digit-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+  background-color: #0F172A;
+}
+
+.code-digit-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Corporate Verification Button (No Outer Glow Shadow) */
+.login-btn.btn-verify {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-ai) 100%);
+  box-shadow: none !important;
+}
+
+.login-btn.btn-verify:hover {
+  background: linear-gradient(135deg, var(--color-primary-hover) 0%, var(--color-primary) 100%);
+  box-shadow: none !important;
+}
+
 .flex-shrink-0 {
   flex-shrink: 0;
 }

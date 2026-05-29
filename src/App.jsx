@@ -11,6 +11,7 @@ import Login from './components/Login.jsx';
 import Profile from './components/Profile.jsx';
 import Equipo from './components/Equipo.jsx';
 import { RefreshCw } from 'lucide-react';
+import { isTokenExpired } from './utils.js';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -25,13 +26,30 @@ function App() {
     const storedUser = localStorage.getItem('temikia-crm-user');
     if (storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
-        setCurrentTab('dashboard'); // Ensure dashboard tab is always loaded upon page access or reload
+        const parsedUser = JSON.parse(storedUser);
+        if (parsedUser && parsedUser.token && isTokenExpired(parsedUser.token)) {
+          localStorage.removeItem('temikia-crm-user');
+          setUser(null);
+        } else {
+          setUser(parsedUser);
+          setCurrentTab('dashboard'); // Ensure dashboard tab is always loaded upon page access or reload
+        }
       } catch (e) {
         localStorage.removeItem('temikia-crm-user');
       }
     }
     setCheckingSession(false);
+  }, []);
+
+  // Listen to global authentication expiration events
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      handleLogout();
+    };
+    window.addEventListener('temikia-auth-expired', handleAuthExpired);
+    return () => {
+      window.removeEventListener('temikia-auth-expired', handleAuthExpired);
+    };
   }, []);
 
   const handleLoginSuccess = (userData) => {

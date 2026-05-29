@@ -25,7 +25,15 @@ window.fetch = async (...args) => {
       }
     }
   }
-  return originalFetch(resource, config);
+  const response = await originalFetch(resource, config);
+  
+  // Intercept authentication/authorization failures (expired session, revoked token)
+  if (typeof resource === 'string' && resource.startsWith('/api/') && (response.status === 401 || response.status === 403)) {
+    localStorage.removeItem('temikia-crm-user');
+    window.dispatchEvent(new Event('temikia-auth-expired'));
+  }
+  
+  return response;
 };
 
 ReactDOM.createRoot(document.getElementById('root')).render(

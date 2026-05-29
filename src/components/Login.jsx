@@ -1,10 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Lock, ShieldAlert, Key, Sparkles, ArrowRight, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Mail, Lock, ShieldAlert, Key, Sparkles, ArrowRight, ShieldCheck, RefreshCw, Cpu, Layers } from 'lucide-react';
 import confetti from 'canvas-confetti';
+
+const maskEmail = (emailStr) => {
+  if (!emailStr) return '';
+  const [localPart, domain] = emailStr.split('@');
+  if (!localPart || !domain) return emailStr;
+  if (localPart.length <= 4) {
+    return `${localPart[0]}***@${domain}`;
+  }
+  return `${localPart.substring(0, 4)}******@${domain}`;
+};
 
 const Login = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  
+  // Landing/Welcome page state
+  const [showCredentialsForm, setShowCredentialsForm] = useState(false);
   
   // First-time password change wizard
   const [requiresChange, setRequiresChange] = useState(false);
@@ -15,7 +28,88 @@ const Login = ({ onLoginSuccess }) => {
   
   // 2FA state
   const [requires2FA, setRequires2FA] = useState(false);
-  const [verificationCode, setVerificationCode] = useState('');
+  const [codeDigits, setCodeDigits] = useState(['', '', '', '', '', '']);
+  const verificationCode = codeDigits.join('');
+  const inputRefs = React.useRef([]);
+  const [isAccountBlocked, setIsAccountBlocked] = useState(false);
+
+  // Redirect to landing welcome screen 10 seconds after account is blocked
+  useEffect(() => {
+    let redirectTimeout = null;
+    if (isAccountBlocked) {
+      redirectTimeout = setTimeout(() => {
+        setRequires2FA(false);
+        setCodeDigits(['', '', '', '', '', '']);
+        setError('');
+        setSuccessMessage('');
+        setIsAccountBlocked(false);
+        setShowCredentialsForm(false);
+      }, 10000); // 10 seconds
+    }
+    return () => {
+      if (redirectTimeout) clearTimeout(redirectTimeout);
+    };
+  }, [isAccountBlocked]);
+
+  // Segmented input helper functions
+  const handleDigitChange = (value, index) => {
+    const digit = value.slice(-1).replace(/\D/g, '');
+    const newDigits = [...codeDigits];
+    newDigits[index] = digit;
+    setCodeDigits(newDigits);
+
+    // Auto-focus next input if value entered
+    if (digit !== '' && index < 5) {
+      if (inputRefs.current[index + 1]) {
+        inputRefs.current[index + 1].focus();
+      }
+    }
+  };
+
+  const handleDigitKeyDown = (e, index) => {
+    if (e.key === 'Backspace') {
+      if (codeDigits[index] === '' && index > 0) {
+        const newDigits = [...codeDigits];
+        newDigits[index - 1] = '';
+        setCodeDigits(newDigits);
+        if (inputRefs.current[index - 1]) {
+          inputRefs.current[index - 1].focus();
+        }
+      } else if (codeDigits[index] !== '') {
+        const newDigits = [...codeDigits];
+        newDigits[index] = '';
+        setCodeDigits(newDigits);
+      }
+    }
+  };
+
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (pastedData.length > 0) {
+      const newDigits = [...codeDigits];
+      for (let i = 0; i < 6; i++) {
+        newDigits[i] = pastedData[i] || '';
+      }
+      setCodeDigits(newDigits);
+      const targetIndex = Math.min(pastedData.length, 5);
+      if (inputRefs.current[targetIndex]) {
+        inputRefs.current[targetIndex].focus();
+      }
+    }
+  };
+
+  // Autofocus first digit input on entering 2FA screen
+  useEffect(() => {
+    if (requires2FA) {
+      setTimeout(() => {
+        if (inputRefs.current[0]) {
+          inputRefs.current[0].focus();
+        }
+      }, 50);
+    }
+  }, [requires2FA]);
+
   const [timer, setTimer] = useState(180);
   const [canResend, setCanResend] = useState(false);
 
@@ -57,7 +151,7 @@ const Login = ({ onLoginSuccess }) => {
   const handleResendCode = async () => {
     setError('');
     setSuccessMessage('');
-    setVerificationCode('');
+    setCodeDigits(['', '', '', '', '', '']);
 
     const trimmedEmail = email.trim().toLowerCase();
 
@@ -80,7 +174,7 @@ const Login = ({ onLoginSuccess }) => {
         throw new Error(data.error || 'Ocurrió un error al intentar reenviar el código.');
       }
 
-      setSuccessMessage(`Se ha enviado un nuevo código de verificación de 6 dígitos a su correo corporativo ${trimmedEmail}.`);
+      setSuccessMessage(`Se ha enviado un nuevo código de verificación de 6 dígitos a su correo corporativo ${maskEmail(trimmedEmail)}.`);
       setTimer(180); // Reset countdown back to 3 minutes
       setCanResend(false); // Disable resend option
     } catch (err) {
@@ -141,7 +235,7 @@ const Login = ({ onLoginSuccess }) => {
         setRequires2FA(true);
         setTimer(180);
         setCanResend(false);
-        setSuccessMessage(`Se ha enviado un código de verificación de 6 dígitos a su correo corporativo ${data.email}.`);
+        setSuccessMessage(`Se ha enviado un código de verificación de 6 dígitos a su correo corporativo ${maskEmail(data.email)}.`);
       } else {
         onLoginSuccess(data.user);
       }
@@ -193,6 +287,9 @@ const Login = ({ onLoginSuccess }) => {
     } catch (err) {
       console.error(err);
       setError(err.message);
+      if (err.message && (err.message.toLowerCase().includes('bloqueada') || err.message.toLowerCase().includes('bloqueado'))) {
+        setIsAccountBlocked(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -266,42 +363,72 @@ const Login = ({ onLoginSuccess }) => {
 
   return (
     <div className="login-backdrop">
-      <div className="login-container">
+      <div className={`login-container ${!showCredentialsForm ? 'landing-mode' : ''}`}>
         
         {/* Background glow animations matching premium Vercel/Linear look */}
         <div className="login-glow login-glow-1"></div>
         <div className="login-glow login-glow-2"></div>
 
-        <div className="login-card">
-          {/* Card Header Logo */}
-          <div className="login-logo-header">
-            <div className="login-logo-ring">
-              <img 
-                src="/logo.png" 
-                alt="Temikia Logo" 
-                className="login-logo-img"
-              />
-            </div>
-            <h2 className="login-title">Temikia CRM</h2>
-            <p className="login-subtitle">Hub Comercial Inteligente • Portal de Acceso</p>
-          </div>
-
-          {/* Feedback Messages */}
-          {error && (
-            <div className="login-alert error">
-              <ShieldAlert size={18} className="flex-shrink-0" />
-              <span>{error}</span>
+        <div className={`login-card ${!showCredentialsForm ? 'landing-card-mode' : ''}`}>
+          {/* Card Header Logo (rendered only when credential form is active) */}
+          {showCredentialsForm && (
+            <div className="login-logo-header">
+              <div className="login-logo-ring">
+                <img 
+                  src="/logo.png" 
+                  alt="Temikia Logo" 
+                  className="login-logo-img"
+                />
+              </div>
+              <h2 className="login-title">Temikia CRM</h2>
+              <p className="login-subtitle">
+                {requires2FA ? 'Verificación de acceso' : 'Hub Comercial Inteligente • Portal de Acceso'}
+              </p>
             </div>
           )}
 
-          {successMessage && (
-            <div className="login-alert success">
-              <ShieldCheck size={18} className="flex-shrink-0" />
-              <span>{successMessage}</span>
-            </div>
-          )}
+          {!showCredentialsForm ? (
+            <div className="landing-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px', padding: '16px 0 8px 0' }}>
+              <div className="landing-logo-ring-large">
+                <img 
+                  src="/logo.png" 
+                  alt="Temikia Logo" 
+                  className="landing-logo-img-large"
+                />
+              </div>
+              
+              <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <h2 className="landing-title-large">Temikia CRM</h2>
+                <p className="landing-subtitle-large">Hub Comercial Inteligente • Portal de Acceso</p>
+              </div>
 
-          {requiresChange ? (
+              <button 
+                onClick={() => setShowCredentialsForm(true)}
+                className="btn login-btn btn-ai"
+                style={{ width: '220px', padding: '14px', fontSize: '15px', fontWeight: 600, marginTop: '16px' }}
+              >
+                <span>Ingresar</span>
+                {/* <ArrowRight size={18} /> */}
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Feedback Messages */}
+              {error && (
+                <div className="login-alert error">
+                  <ShieldAlert size={18} className="flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="login-alert success">
+                  <ShieldCheck size={18} className="flex-shrink-0" />
+                  <span>{successMessage}</span>
+                </div>
+              )}
+
+              {requiresChange ? (
             /* ========================================================
                PASSWORD CHANGE WIZARD (FIRST-TIME LOGIN)
                ======================================================== */
@@ -403,62 +530,44 @@ const Login = ({ onLoginSuccess }) => {
             /* ========================================================
                2FA VERIFICATION FORM
                ======================================================== */
-            <form onSubmit={handle2FAVerifySubmit} className="login-form">
-              <div className="login-form-group">
-                <label className="login-form-label">Código de Verificación</label>
-                <div className="login-input-wrapper">
-                  <Key className="login-input-icon" size={16} />
-                  <input 
-                    type="text" 
-                    maxLength={6}
-                    placeholder="123456"
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-                    disabled={loading}
-                    className="login-input"
-                    required
-                    style={{ letterSpacing: '6px', textAlign: 'center', fontSize: '18px', fontWeight: 'bold' }}
-                  />
-                </div>
-                <span className="login-field-hint">Código de seguridad de un solo uso</span>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginTop: '4px', marginBottom: '16px' }}>
-                <span style={{ fontSize: '13px', color: timer > 0 ? 'var(--text-secondary)' : 'var(--color-danger)', fontWeight: 600 }}>
-                  {timer > 0 ? `El código expira en: ${formatTimer(timer)}` : 'El código ha expirado'}
-                </span>
+            <form onSubmit={handle2FAVerifySubmit} className="login-form" style={{ gap: '20px' }}>
+              <div className="login-form-group" style={{ gap: '10px' }}>
+                <label className="login-form-label" style={{ color: '#E2E8F0', opacity: 0.95 }}>Código de Verificación</label>
                 
-                <button
-                  type="button"
-                  onClick={handleResendCode}
-                  disabled={loading || !canResend}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: canResend ? 'var(--color-primary)' : 'var(--text-muted)',
-                    fontSize: '12.5px',
-                    fontWeight: 600,
-                    cursor: canResend ? 'pointer' : 'not-allowed',
-                    textDecoration: canResend ? 'underline' : 'none',
-                    opacity: canResend ? 1 : 0.6,
-                    transition: 'all var(--transition-fast)',
-                    fontFamily: 'inherit'
-                  }}
-                >
-                  Reenviar código
-                </button>
+                {/* 6 Segmented Inputs */}
+                <div className="code-segmented-inputs" onPaste={handlePaste}>
+                  {[0, 1, 2, 3, 4, 5].map((index) => (
+                    <input
+                      key={index}
+                      type="text"
+                      maxLength={1}
+                      value={codeDigits[index]}
+                      onChange={(e) => handleDigitChange(e.target.value, index)}
+                      onKeyDown={(e) => handleDigitKeyDown(e, index)}
+                      disabled={loading}
+                      ref={(el) => (inputRefs.current[index] = el)}
+                      className="code-digit-input"
+                      required
+                    />
+                  ))}
+                </div>
+                <span className="login-field-hint" style={{ color: '#94A3B8', fontSize: '11.5px', marginTop: '4px' }}>
+                  Código de seguridad de un solo uso de 6 dígitos.
+                </span>
               </div>
 
               <button 
                 type="submit" 
-                className="btn login-btn btn-ai"
-                disabled={loading}
+                className="btn login-btn btn-verify"
+                disabled={loading || isAccountBlocked}
               >
                 {loading ? (
                   <>
                     <RefreshCw className="animate-spin" size={16} />
                     <span>Verificando...</span>
                   </>
+                ) : isAccountBlocked ? (
+                  <span>Cuenta Bloqueada</span>
                 ) : (
                   <>
                     <Sparkles size={16} />
@@ -467,36 +576,40 @@ const Login = ({ onLoginSuccess }) => {
                 )}
               </button>
 
-              <div style={{ textAlign: 'center', marginTop: '14px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
+                {/* Reenviar Código Timer / Action (hidden if blocked) */}
+                {!isAccountBlocked && (
+                  !canResend ? (
+                    <span style={{ fontSize: '12.5px', color: '#94A3B8', fontWeight: 500 }}>
+                      Reenviar código disponible en {formatTimer(timer)}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleResendCode}
+                      disabled={loading}
+                      className="landing-back-btn"
+                      style={{ fontSize: '13px', color: '#3B82F6', fontWeight: 600, padding: '4px 8px' }}
+                    >
+                      Reenviar código
+                    </button>
+                  )
+                )}
+
+                {/* Usar otro correo button (secondary action, never red!) */}
                 <button
                   type="button"
                   onClick={() => {
                     setRequires2FA(false);
-                    setVerificationCode('');
+                    setCodeDigits(['', '', '', '', '', '']);
                     setError('');
                     setSuccessMessage('');
+                    setIsAccountBlocked(false);
                   }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#EF4444', // Red button
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textDecoration: 'none',
-                    transition: 'all 0.2s ease',
-                    fontFamily: 'inherit'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.textDecoration = 'underline';
-                    e.currentTarget.style.color = '#DC2626'; // Darker red on hover
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.textDecoration = 'none';
-                    e.currentTarget.style.color = '#EF4444';
-                  }}
+                  className="landing-back-btn"
+                  style={{ fontSize: '13px', color: '#94A3B8', fontWeight: 600, padding: '4px 8px' }}
                 >
-                  Cancelar
+                  Usar otro correo
                 </button>
               </div>
             </form>
@@ -506,7 +619,7 @@ const Login = ({ onLoginSuccess }) => {
                ======================================================== */
             <form onSubmit={handleLoginSubmit} className="login-form">
               <div className="login-form-group">
-                <label className="login-form-label">Correo Corporativo</label>
+                <label className="login-form-label">Correo</label>
                 <div className="login-input-wrapper">
                   <Mail className="login-input-icon" size={16} />
                   <input 
@@ -558,8 +671,27 @@ const Login = ({ onLoginSuccess }) => {
             </form>
           )}
 
+          {/* Volver al inicio button */}
+          <div style={{ textAlign: 'center', marginTop: '12px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowCredentialsForm(false);
+                setError('');
+                setSuccessMessage('');
+              }}
+              className="landing-back-btn"
+            >
+              Volver al Inicio
+            </button>
+          </div>
+        </>
+      )}
+
           <div className="login-footer">
-            <span>© 2026 Temikia Agency. Todos los derechos reservados.</span>
+            <span>
+              © 2026 <a href="https://temikia.com" target="_blank" rel="noopener noreferrer" style={{ color: '#3B82F6', textDecoration: 'none', fontWeight: 600 }}>temikia.com</a> • Temikia Agency. Todos los derechos reservados.
+            </span>
             <span>Sistema de Seguridad de Datos del CRM.</span>
           </div>
 

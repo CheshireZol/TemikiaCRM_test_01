@@ -2,6 +2,7 @@ import express from 'express';
 import pg from 'pg';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import fs from 'fs';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import helmet from 'helmet';
@@ -15,7 +16,13 @@ import { fileURLToPath } from 'url';
 dns.setDefaultResultOrder('ipv4first');
 
 
-dotenv.config();
+// Conditionally load .env if it exists physically on disk (for local development)
+if (fs.existsSync(path.join(process.cwd(), '.env'))) {
+  dotenv.config();
+  console.log('INFO: Environment variables loaded from local .env file.');
+} else {
+  console.log('INFO: No local .env file found. Reading variables directly from OS / Host environment.');
+}
 
 const app = express();
 const PORT = process.env.PORT || 4001;

@@ -124,6 +124,68 @@ map $http_upgrade $connection_upgrade {
 }
 ```
 
+## 🔑 Configuración de Seguridad: Eliminación de `.env` en Producción
+
+Para cumplir con los más altos estándares de seguridad corporativa, **el archivo `.env` físico se ha eliminado por completo del servidor de producción y del repositorio de GitHub**. Las variables de entorno ahora son inyectadas en la memoria del sistema, evitando cualquier riesgo de filtración.
+
+El backend unificado está programado para verificar la existencia física del archivo `.env`. Si no se detecta (comportamiento de producción), cargará las variables de entorno nativas de forma automática a través de `process.env`.
+
+A continuación se detallan los dos métodos recomendados para configurar las credenciales en producción:
+
+### 🌟 Método A: Variables a Nivel de Sistema Operativo (Recomendado)
+Este método configura las variables de entorno en el perfil del usuario de Linux para que estén disponibles de forma segura en memoria y aisladas de archivos físicos de configuración.
+
+1. **Editar el perfil del usuario en la terminal del servidor:**
+   ```bash
+   nano ~/.bashrc
+   ```
+2. **Agregar las variables de entorno al final del archivo:**
+   Modifica las siguientes líneas con tus datos de producción correspondientes:
+   ```bash
+   export DATABASE_URL="postgresql://tu-usuario-supabase:tu-password@db.supabase.co:5432/postgres"
+   export SMTP_USER="correo@temikia.com"
+   export SMTP_PASS="tu-contrasena-smtp-de-aplicacion"
+   export JWT_SECRET="tu-clave-secreta-jwt-altamente-segura"
+   export NODE_ENV="production"
+   export PORT="4001"
+   ```
+3. **Aplicar los cambios en el sistema operativo:**
+   ```bash
+   source ~/.bashrc
+   ```
+4. **Eliminar físicamente el archivo `.env` en el servidor:**
+   ```bash
+   rm -f /root/temikiaCRM/.env
+   ```
+5. **Iniciar o reiniciar el proceso en PM2:**
+   Al iniciar, heredará las variables globales del sistema de forma automática:
+   ```bash
+   pm2 restart temikia-crm --update-env
+   # Si es la primera vez:
+   # pm2 start server.js --name "temikia-crm"
+   pm2 save
+   ```
+
+---
+
+### 🚀 Método B: Inyección en PM2 en Memoria RAM Activa
+Si prefieres no modificar los archivos del sistema operativo, puedes inyectar las credenciales directamente en la consola al iniciar el servicio PM2 por primera vez. PM2 las almacenará en su base de datos de configuración interna segura.
+
+1. **Iniciar el proceso en PM2 inyectando las variables de entorno por consola:**
+   ```bash
+   DATABASE_URL="tu-url-supabase" SMTP_USER="tu-correo-smtp" SMTP_PASS="tu-pass-smtp" JWT_SECRET="tu-secreto" NODE_ENV="production" pm2 start server.js --name "temikia-crm" --update-env
+   ```
+2. **Persistir la configuración inyectada en la base de datos de PM2:**
+   ```bash
+   pm2 save
+   ```
+3. **Eliminar permanentemente el archivo `.env` físico:**
+   ```bash
+   rm -f /root/temikiaCRM/.env
+   ```
+4. **Reinicio ordinario:**
+   Cada vez que utilices `./deploy.sh` o el servidor se reinicie, PM2 alimentará al backend con estas variables almacenadas internamente en memoria, sin requerir ningún archivo `.env` físico en disco.
+
 ---
 
 ## ⚙️ Uso del Script de Despliegue Automático (`deploy.sh`)
