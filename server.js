@@ -711,7 +711,7 @@ app.get('/api/prospectos', authenticateToken, async (req, res) => {
     const safeSortOrder = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
     // Pagination limits
-    const safeLimit = Math.min(parseInt(limit, 10) || 50, 150);
+    const safeLimit = Math.min(parseInt(limit, 10) || 50, 1000000);
     const safeOffset = Math.max(parseInt(offset, 10) || 0, 0);
 
     // Dynamic Query with LEFT JOIN lookup on Giro name and Google Maps details

@@ -59,6 +59,7 @@ const AIAssistant = ({ user, triggerRefresh, onLeadClick }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isSavingStrategy, setIsSavingStrategy] = useState(false);
   const [outreachError, setOutreachError] = useState(''); // Error state instead of alerts
+  const [scoreError, setScoreError] = useState('');
 
   // Scoring guide matching variables if selectedLead is active
   const waList = selectedLead ? parseStringArray(selectedLead.whatsapp) : [];
@@ -224,9 +225,15 @@ const AIAssistant = ({ user, triggerRefresh, onLeadClick }) => {
   };
 
   const handleRecalculateAIScore = async (lead) => {
+    setScoreError('');
     try {
       // Calculate AI Score locally
       const newScore = calculateAILeadScore(lead);
+      
+      // If the score is already up-to-date, do nothing and return silently!
+      if (lead.lead_score === newScore) {
+        return;
+      }
       
       const res = await fetch(`/api/prospectos/${lead.id}/score`, {
         method: 'PUT',
@@ -249,7 +256,7 @@ const AIAssistant = ({ user, triggerRefresh, onLeadClick }) => {
       });
     } catch (err) {
       console.error(err);
-      setOutreachError('No se pudo recalcular el score de este prospecto.');
+      setScoreError('No se pudo recalcular el score.');
     }
   };
 
@@ -440,6 +447,11 @@ ESTADO DEL LEAD SCORE: ${selectedLead.lead_score}/100`;
                     <Wand2 size={14} className="hover-glow" />
                   </button>
                 </div>
+                {scoreError && (
+                  <span style={{ fontSize: '9px', color: '#EF4444', display: 'block', marginTop: '4px', maxWidth: '100px', lineHeight: '1.2', fontWeight: 600 }}>
+                    {scoreError}
+                  </span>
+                )}
               </div>
             </div>
 

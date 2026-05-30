@@ -43,7 +43,16 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
   
   // Pagination State
   const [totalCount, setTotalCount] = useState(0);
-  const [limit] = useState(25); // Show 25 records per page
+  const [limit, setLimit] = useState(() => {
+    const saved = localStorage.getItem('temikia_lead_list_limit');
+    if (saved) {
+      const parsed = parseInt(saved, 10);
+      if ([25, 50, 100, 200, 500, 1000000].includes(parsed)) {
+        return parsed;
+      }
+    }
+    return 25; // Default limit
+  });
   const [offset, setOffset] = useState(0);
 
   // Sorting State
@@ -51,6 +60,28 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
   const [sortOrder, setSortOrder] = useState('DESC');
   const [isBatchQualifying, setIsBatchQualifying] = useState(false);
   const [isBatchSuccess, setIsBatchSuccess] = useState(false);
+  
+  // Resizable column widths (persistent across pages & views!)
+  const [colWidths, setColWidths] = useState(() => {
+    const saved = localStorage.getItem('temikia_lead_list_col_widths');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Error parsing saved column widths:', e);
+      }
+    }
+    return {
+      nombre: 220,
+      estatus: 120,
+      prioridad: 110,
+      giro: 150,
+      ubicacion: 160,
+      contacto: 200,
+      lead_score: 110,
+      updated_at: 150
+    };
+  });
 
   // Filter States
   const [filters, setFilters] = useState({
@@ -173,7 +204,7 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
 
   useEffect(() => {
     fetchProspects();
-  }, [offset, sortBy, sortOrder, searchQuery, filters, asignadoAMi, triggerRefreshToggle]);
+  }, [offset, limit, sortBy, sortOrder, searchQuery, filters, asignadoAMi, triggerRefreshToggle]);
 
   // Reset page to 1 when filters or search query changes
   const handleFilterChange = (key, value) => {
@@ -301,6 +332,60 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
     }
   };
 
+  const handleResizeStart = (e, colKey) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = colWidths[colKey] || 150;
+
+    const handleMouseMove = (moveEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const newWidth = Math.max(80, startWidth + deltaX); // Min width is 80px
+      setColWidths(prev => {
+        const nextWidths = {
+          ...prev,
+          [colKey]: newWidth
+        };
+        localStorage.setItem('temikia_lead_list_col_widths', JSON.stringify(nextWidths));
+        return nextWidths;
+      });
+    };
+
+    const handleMouseUp = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const renderEmptyRows = (count) => {
+    const emptyRows = [];
+    for (let i = 0; i < count; i++) {
+      emptyRows.push(
+        <tr 
+          key={`empty-${i}`} 
+          style={{ 
+            height: '62px', 
+            pointerEvents: 'none',
+            backgroundColor: 'transparent'
+          }}
+        >
+          <td style={{ height: '62px', padding: '8px 16px', boxSizing: 'border-box', borderBottom: '1px solid var(--border-color)' }}>&nbsp;</td>
+          <td style={{ height: '62px', padding: '8px 16px', boxSizing: 'border-box', borderBottom: '1px solid var(--border-color)' }}>&nbsp;</td>
+          <td style={{ height: '62px', padding: '8px 16px', boxSizing: 'border-box', borderBottom: '1px solid var(--border-color)' }}>&nbsp;</td>
+          <td style={{ height: '62px', padding: '8px 16px', boxSizing: 'border-box', borderBottom: '1px solid var(--border-color)' }}>&nbsp;</td>
+          <td style={{ height: '62px', padding: '8px 16px', boxSizing: 'border-box', borderBottom: '1px solid var(--border-color)' }}>&nbsp;</td>
+          <td style={{ height: '62px', padding: '8px 16px', boxSizing: 'border-box', borderBottom: '1px solid var(--border-color)' }}>&nbsp;</td>
+          <td style={{ height: '62px', padding: '8px 16px', boxSizing: 'border-box', borderBottom: '1px solid var(--border-color)' }}>&nbsp;</td>
+          <td style={{ height: '62px', padding: '8px 16px', boxSizing: 'border-box', borderBottom: '1px solid var(--border-color)' }}>&nbsp;</td>
+        </tr>
+      );
+    }
+    return emptyRows;
+  };
+
   const currentPage = Math.floor(offset / limit) + 1;
   const totalPages = Math.ceil(totalCount / limit) || 1;
 
@@ -344,10 +429,29 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
       </div>
 
       {/* Search & Complex Filter panel */}
-      <div className="table-card" style={{ padding: '20px', border: '1px solid var(--border-color)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-          <SlidersHorizontal size={16} style={{ color: 'var(--color-primary)' }} />
-          <h3 className="card-title" style={{ fontSize: '14px' }}>Filtros Avanzados de Búsqueda</h3>
+      <div className="table-card" style={{ padding: '20px', border: '1px solid var(--border-color)', position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <SlidersHorizontal size={16} style={{ color: 'var(--color-primary)' }} />
+            <h3 className="card-title" style={{ fontSize: '14px', margin: 0 }}>Filtros Avanzados de Búsqueda</h3>
+          </div>
+          
+          <button 
+            type="button"
+            className="btn btn-secondary btn-text" 
+            onClick={() => {
+              setFilters({ pais: '', ciudad: '', giro: '', owner: '', miembro_id: '', prioridad: '', estatus: '' });
+              setAsignadoAMi(false);
+              setOffset(0);
+            }}
+            style={{ 
+              fontSize: '12px',
+              padding: '6px 12px',
+              cursor: 'pointer'
+            }}
+          >
+            Limpiar Filtros
+          </button>
         </div>
 
         <div style={{ 
@@ -481,367 +585,493 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
       {/* Advanced lead list grid */}
       <div className="table-card">
         {/* Table header indicators */}
-        <div className="table-controls">
-          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-            Mostrando registros del <strong>{offset + 1}</strong> al <strong>{Math.min(offset + limit, totalCount)}</strong> de un total de <strong>{totalCount}</strong> prospectos.
-          </span>
+        <div className="table-controls" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '10px' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>Lista de Leads</h3>
           
-          <button 
-            className="btn btn-secondary btn-text" 
-            onClick={() => {
-              setFilters({ pais: '', ciudad: '', giro: '', owner: '', miembro_id: '', prioridad: '', estatus: '' });
-              setAsignadoAMi(false);
-              setOffset(0);
+          {/* Calificar IA button (relocated to where Limpiar Filtros used to be) */}
+          <button
+            className="btn btn-primary"
+            onClick={handleBatchQualifyIA}
+            disabled={isBatchQualifying || loading || !user || !user.miembroId || !hasMyLeads}
+            style={{ 
+              padding: '6px 14px', 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              width: '135px',
+              gap: '6px',
+              background: isBatchSuccess 
+                ? 'linear-gradient(135deg, var(--color-ai) 0%, var(--color-brand-dark) 100%)' 
+                : 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-brand-dark) 100%)',
+              color: '#FFFFFF',
+              borderColor: isBatchSuccess ? 'var(--color-ai)' : 'var(--color-primary)',
+              cursor: (isBatchQualifying || loading || !user || !user.miembroId || !hasMyLeads) ? 'not-allowed' : 'pointer',
+              opacity: (isBatchQualifying || loading || !user || !user.miembroId || !hasMyLeads) ? 0.5 : 1,
+              transition: 'background 0.5s ease, border-color 0.5s ease, opacity 0.3s ease',
+              fontSize: '12px'
             }}
-            style={{ fontSize: '12px' }}
+            title={
+              !hasMyLeads 
+                ? "No hay leads asignados a ti en esta página" 
+                : "Calificar todos los leads asignados a mí en esta página"
+            }
           >
-            Limpiar Filtros
+            {isBatchQualifying ? (
+              <div key="loading" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', animation: 'fadeIn 0.3s ease-out' }}>
+                <RefreshCw className="animate-spin" size={14} />
+                <span>Calificando...</span>
+              </div>
+            ) : isBatchSuccess ? (
+              <div key="success" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', animation: 'fadeIn 0.5s ease-in-out' }}>
+                <Check size={14} />
+                <span>Realizado</span>
+              </div>
+            ) : (
+              <div key="idle" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', animation: 'fadeIn 0.3s ease-out' }}>
+                <Sparkles size={14} />
+                <span>Calificar IA</span>
+              </div>
+            )}
           </button>
         </div>
 
         {/* Dynamic Data Grid */}
-        <div className="table-wrapper">
-          <table className="leads-table">
+        <div className="table-wrapper" style={{ overflowY: 'auto' }}>
+          <table className="leads-table" style={{ tableLayout: 'fixed', width: '100%', borderCollapse: 'collapse' }}>
+            <colgroup>
+              <col style={{ width: `${colWidths.nombre}px` }} />
+              <col style={{ width: `${colWidths.estatus}px` }} />
+              <col style={{ width: `${colWidths.prioridad}px` }} />
+              <col style={{ width: `${colWidths.giro}px` }} />
+              <col style={{ width: `${colWidths.ubicacion}px` }} />
+              <col style={{ width: `${colWidths.contacto}px` }} />
+              <col style={{ width: `${colWidths.lead_score}px` }} />
+              <col style={{ width: `${colWidths.updated_at}px` }} />
+            </colgroup>
             <thead>
               <tr>
-                <th onClick={() => handleSort('nombre')} style={{ cursor: 'pointer' }}>
+                <th onClick={() => handleSort('nombre')} style={{ cursor: 'pointer', position: 'relative', userSelect: 'none', paddingRight: '12px' }}>
                   Nombre Comercial <ArrowUpDown size={12} style={{ marginLeft: '4px', verticalAlign: 'middle' }} />
+                  <div 
+                    onMouseDown={(e) => handleResizeStart(e, 'nombre')} 
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 10, backgroundColor: 'transparent' }}
+                  />
                 </th>
-                <th onClick={() => handleSort('estatus')} style={{ cursor: 'pointer', width: '120px' }}>
+                <th onClick={() => handleSort('estatus')} style={{ cursor: 'pointer', position: 'relative', userSelect: 'none', paddingRight: '12px' }}>
                   Estatus <ArrowUpDown size={12} style={{ marginLeft: '4px', verticalAlign: 'middle' }} />
+                  <div 
+                    onMouseDown={(e) => handleResizeStart(e, 'estatus')} 
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 10, backgroundColor: 'transparent' }}
+                  />
                 </th>
-                <th onClick={() => handleSort('prioridad')} style={{ cursor: 'pointer', width: '100px' }}>
+                <th onClick={() => handleSort('prioridad')} style={{ cursor: 'pointer', position: 'relative', userSelect: 'none', paddingRight: '12px' }}>
                   Prioridad <ArrowUpDown size={12} style={{ marginLeft: '4px', verticalAlign: 'middle' }} />
+                  <div 
+                    onMouseDown={(e) => handleResizeStart(e, 'prioridad')} 
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 10, backgroundColor: 'transparent' }}
+                  />
                 </th>
-                <th>Giro Comercial</th>
-                <th>Ubicación</th>
-                <th>Datos Contacto</th>
-                <th onClick={() => handleSort('lead_score')} style={{ cursor: 'pointer', width: '110px' }}>
+                <th style={{ position: 'relative', userSelect: 'none', paddingRight: '12px' }}>
+                  Giro Comercial
+                  <div 
+                    onMouseDown={(e) => handleResizeStart(e, 'giro')} 
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 10, backgroundColor: 'transparent' }}
+                  />
+                </th>
+                <th style={{ position: 'relative', userSelect: 'none', paddingRight: '12px' }}>
+                  Ubicación
+                  <div 
+                    onMouseDown={(e) => handleResizeStart(e, 'ubicacion')} 
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 10, backgroundColor: 'transparent' }}
+                  />
+                </th>
+                <th style={{ position: 'relative', userSelect: 'none', paddingRight: '12px' }}>
+                  Datos Contacto
+                  <div 
+                    onMouseDown={(e) => handleResizeStart(e, 'contacto')} 
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 10, backgroundColor: 'transparent' }}
+                  />
+                </th>
+                <th onClick={() => handleSort('lead_score')} style={{ cursor: 'pointer', position: 'relative', userSelect: 'none', paddingRight: '12px' }}>
                   Score (IA) <ArrowUpDown size={12} style={{ marginLeft: '4px', verticalAlign: 'middle' }} />
+                  <div 
+                    onMouseDown={(e) => handleResizeStart(e, 'lead_score')} 
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 10, backgroundColor: 'transparent' }}
+                  />
                 </th>
-                <th onClick={() => handleSort('updated_at')} style={{ cursor: 'pointer', width: '150px' }}>
+                <th onClick={() => handleSort('updated_at')} style={{ cursor: 'pointer', position: 'relative', userSelect: 'none', paddingRight: '12px' }}>
                   Última Actividad <ArrowUpDown size={12} style={{ marginLeft: '4px', verticalAlign: 'middle' }} />
+                  <div 
+                    onMouseDown={(e) => handleResizeStart(e, 'updated_at')} 
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 10, backgroundColor: 'transparent' }}
+                  />
                 </th>
               </tr>
             </thead>
             <tbody>
               {leads.length > 0 ? (
-                leads.map((lead) => {
-                  const mails = parseStringArray(lead.correo);
-                  const phones = parseStringArray(lead.telefono);
-                  const isEditable = !lead.miembro_id || lead.miembro_id === '' || (user && lead.miembro_id === user.miembroId);
-                  
-                  return (
-                    <tr key={lead.id}>
-                      {/* 1. Name Column */}
-                      <td className="leads-table-name-col">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <button
-                            type="button"
-                            onClick={() => onLeadClick(lead.id)}
-                            style={{
-                              background: 'rgba(59, 130, 246, 0.1)',
-                              border: '1px solid rgba(59, 130, 246, 0.2)',
-                              borderRadius: '6px',
-                              padding: '4px 6px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              color: 'var(--color-primary)',
-                              transition: 'all 0.2s',
-                              flexShrink: 0
-                            }}
-                            title="Ver Detalle del Lead"
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
-                              e.currentTarget.style.transform = 'scale(1.05)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
-                              e.currentTarget.style.transform = 'scale(1)';
-                            }}
-                          >
-                            <Eye size={12} />
-                          </button>
-                          <span style={{ 
-                            fontWeight: 600,
-                            color: lead.asistente_ia_activo ? 'var(--color-ai, #a855f7)' : 'inherit',
-                            textShadow: lead.asistente_ia_activo ? '0 0 8px rgba(168, 85, 247, 0.35)' : 'none'
-                          }}>
-                            {lead.nombre}
-                          </span>
-                        </div>
-                        {lead.contacto_nombre && (
-                          <span className="leads-table-contact-p" style={{ marginTop: '2px', display: 'block' }}>
-                            {lead.contacto_nombre} {lead.contacto_puesto ? `(${lead.contacto_puesto})` : ''}
-                          </span>
-                        )}
-                      </td>
-                      
-                      {/* 2. Estatus Badge Select */}
-                      <td>
-                        <select
-                          value={lead.estatus}
-                          disabled={!isEditable}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={async (e) => {
-                            e.stopPropagation();
-                            await handleUpdateStatus(lead.id, e.target.value);
-                          }}
-                          className="badge"
-                          style={{
-                            cursor: isEditable ? 'pointer' : 'not-allowed',
-                            opacity: isEditable ? 1 : 0.6,
-                            border: '1px solid rgba(255, 255, 255, 0.05)',
-                            outline: 'none',
-                            fontWeight: 600,
-                            fontSize: '11px',
-                            textTransform: 'capitalize',
-                            padding: '4px 20px 4px 8px',
-                            borderRadius: '6px',
-                            appearance: 'none',
-                            backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23ffffff%22%20opacity%3D%220.5%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")',
-                            backgroundRepeat: 'no-repeat',
-                            backgroundPosition: 'right 6px top 50%',
-                            backgroundSize: '8px auto',
-                            backgroundColor: 
-                              lead.estatus === 'ganado' ? 'var(--status-ganado-bg)' :
-                              lead.estatus === 'perdido' ? 'var(--status-perdido-bg)' :
-                              lead.estatus === 'nuevo' ? 'var(--status-nuevo-bg)' :
-                              lead.estatus === 'contactado' ? 'var(--status-contactado-bg)' :
-                              lead.estatus === 'calificado' ? 'var(--status-calificado-bg)' :
-                              'rgba(100, 116, 139, 0.1)',
-                            color:
-                              lead.estatus === 'ganado' ? 'var(--status-ganado-text)' :
-                              lead.estatus === 'perdido' ? 'var(--status-perdido-text)' :
-                              lead.estatus === 'nuevo' ? 'var(--status-nuevo-text)' :
-                              lead.estatus === 'contactado' ? 'var(--status-contactado-text)' :
-                              lead.estatus === 'calificado' ? 'var(--status-calificado-text)' :
-                              'var(--text-secondary)'
-                          }}
-                        >
-                          {Object.keys(statusLabels).map((key) => (
-                            <option key={key} value={key} style={{ backgroundColor: '#0f172a', color: '#fff' }}>
-                              {statusLabels[key]}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-
-                      {/* 3. Priority Badge Select */}
-                      <td>
-                        <select
-                          value={lead.prioridad}
-                          disabled={!isEditable}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={async (e) => {
-                            e.stopPropagation();
-                            await handleUpdatePriority(lead.id, e.target.value);
-                          }}
-                          className="badge"
-                          style={{
-                            cursor: isEditable ? 'pointer' : 'not-allowed',
-                            opacity: isEditable ? 1 : 0.6,
-                            border: '1px solid rgba(255, 255, 255, 0.05)',
-                            outline: 'none',
-                            fontWeight: 600,
-                            fontSize: '11px',
-                            textTransform: 'capitalize',
-                            padding: '4px 20px 4px 8px',
-                            borderRadius: '6px',
-                            appearance: 'none',
-                            backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23ffffff%22%20opacity%3D%220.5%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")',
-                            backgroundRepeat: 'no-repeat',
-                            backgroundPosition: 'right 6px top 50%',
-                            backgroundSize: '8px auto',
-                            backgroundColor: 
-                              lead.prioridad === 'alta' ? 'var(--priority-alta-bg)' :
-                              lead.prioridad === 'media' ? 'var(--priority-media-bg)' :
-                              'var(--priority-baja-bg)',
-                            color:
-                              lead.prioridad === 'alta' ? 'var(--priority-alta-text)' :
-                              lead.prioridad === 'media' ? 'var(--priority-media-text)' :
-                              'var(--priority-baja-text)'
-                          }}
-                        >
-                          {Object.keys(priorityLabels).map((key) => (
-                            <option key={key} value={key} style={{ backgroundColor: '#0f172a', color: '#fff' }}>
-                              {priorityLabels[key]}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-
-                      {/* 4. Giro (Style) */}
-                      <td style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
-                        {lead.giro_nombre || lead.estilo || '-'}
-                      </td>
-
-                      {/* 5. Geolocation */}
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px' }}>
-                          <MapPin size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                          <span style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {lead.ciudad ? `${lead.ciudad}, ` : ''}{lead.pais || '-'}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* 6. Contacts details info */}
-                      <td>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px' }}>
-                          {mails.length > 0 && mails[0] !== '' && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)' }}>
-                              <Mail size={12} style={{ color: 'var(--text-muted)' }} />
-                              <span style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mails[0]}</span>
-                            </div>
-                          )}
-                          {phones.length > 0 && phones[0] !== '' && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)' }}>
-                              <Phone size={12} style={{ color: 'var(--text-muted)' }} />
-                              <span>{phones[0]}</span>
-                            </div>
-                          )}
-                          {mails.length === 0 && phones.length === 0 && (
-                            <span style={{ color: 'var(--text-muted)' }}>Sin datos</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* 7. Lead Score Dynamic with Magic Wand */}
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-ai)', fontWeight: 700 }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <Sparkles size={14} />
-                            <span>{lead.lead_score}</span>
-                          </span>
-                          
-                          {isEditable && (
+                <>
+                  {leads.map((lead) => {
+                    const mails = parseStringArray(lead.correo);
+                    const phones = parseStringArray(lead.telefono);
+                    const isEditable = !lead.miembro_id || lead.miembro_id === '' || (user && lead.miembro_id === user.miembroId);
+                    
+                    return (
+                      <tr key={lead.id} style={{ height: '62px' }}>
+                        {/* 1. Name Column */}
+                        <td className="leads-table-name-col" style={{ height: '62px', padding: '8px 16px', boxSizing: 'border-box', overflow: 'hidden' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', height: '100%' }}>
                             <button
                               type="button"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                await handleRecalculateAIScore(lead);
-                              }}
+                              onClick={() => onLeadClick(lead.id)}
                               style={{
-                                background: 'rgba(168, 85, 247, 0.1)',
-                                border: '1px solid rgba(168, 85, 247, 0.2)',
-                                borderRadius: '4px',
+                                background: 'rgba(59, 130, 246, 0.1)',
+                                border: '1px solid rgba(59, 130, 246, 0.2)',
+                                borderRadius: '6px',
                                 padding: '4px 6px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 cursor: 'pointer',
-                                color: 'var(--color-ai)',
+                                color: 'var(--color-primary)',
                                 transition: 'all 0.2s',
-                                marginLeft: 'auto'
+                                flexShrink: 0
                               }}
-                              title="Recalcular Score con IA"
+                              title="Ver Detalle del Lead"
                               onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = 'rgba(168, 85, 247, 0.2)';
-                                e.currentTarget.style.transform = 'scale(1.1)';
+                                e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
+                                e.currentTarget.style.transform = 'scale(1.05)';
                               }}
                               onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'rgba(168, 85, 247, 0.1)';
+                                e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
                                 e.currentTarget.style.transform = 'scale(1)';
                               }}
                             >
-                              <Wand2 size={12} />
+                              <Eye size={12} />
                             </button>
-                          )}
-                        </div>
-                      </td>
+                            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden', minWidth: 0 }}>
+                              <span style={{ 
+                                fontWeight: 600,
+                                color: lead.asistente_ia_activo ? 'var(--color-ai, #a855f7)' : 'inherit',
+                                textShadow: lead.asistente_ia_activo ? '0 0 8px rgba(168, 85, 247, 0.35)' : 'none',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}>
+                                {lead.nombre}
+                              </span>
+                              {lead.contacto_nombre && (
+                                <span className="leads-table-contact-p" style={{ marginTop: '2px', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {lead.contacto_nombre} {lead.contacto_puesto ? `(${lead.contacto_puesto})` : ''}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        
+                        {/* 2. Estatus Badge Select */}
+                        <td style={{ height: '62px', padding: '8px 16px', boxSizing: 'border-box', overflow: 'hidden' }}>
+                          <select
+                            value={lead.estatus}
+                            disabled={!isEditable}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={async (e) => {
+                              e.stopPropagation();
+                              await handleUpdateStatus(lead.id, e.target.value);
+                            }}
+                            className="badge"
+                            style={{
+                              cursor: isEditable ? 'pointer' : 'not-allowed',
+                              opacity: isEditable ? 1 : 0.6,
+                              border: '1px solid rgba(255, 255, 255, 0.05)',
+                              outline: 'none',
+                              fontWeight: 600,
+                              fontSize: '11px',
+                              textTransform: 'capitalize',
+                              padding: '4px 20px 4px 8px',
+                              borderRadius: '6px',
+                              appearance: 'none',
+                              backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23ffffff%22%20opacity%3D%220.5%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")',
+                              backgroundRepeat: 'no-repeat',
+                              backgroundPosition: 'right 6px top 50%',
+                              backgroundSize: '8px auto',
+                              backgroundColor: 
+                                lead.estatus === 'ganado' ? 'var(--status-ganado-bg)' :
+                                lead.estatus === 'perdido' ? 'var(--status-perdido-bg)' :
+                                lead.estatus === 'nuevo' ? 'var(--status-nuevo-bg)' :
+                                lead.estatus === 'contactado' ? 'var(--status-contactado-bg)' :
+                                lead.estatus === 'calificado' ? 'var(--status-calificado-bg)' :
+                                'rgba(100, 116, 139, 0.1)',
+                              color:
+                                lead.estatus === 'ganado' ? 'var(--status-ganado-text)' :
+                                lead.estatus === 'perdido' ? 'var(--status-perdido-text)' :
+                                lead.estatus === 'nuevo' ? 'var(--status-nuevo-text)' :
+                                lead.estatus === 'contactado' ? 'var(--status-contactado-text)' :
+                                lead.estatus === 'calificado' ? 'var(--status-calificado-text)' :
+                                'var(--text-secondary)',
+                              width: '100%',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden'
+                            }}
+                          >
+                            {Object.keys(statusLabels).map((key) => (
+                              <option key={key} value={key} style={{ backgroundColor: '#0f172a', color: '#fff' }}>
+                                {statusLabels[key]}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
 
-                      {/* 8. Updated Time */}
-                      <td style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                        {formatDate(lead.updated_at)}
-                      </td>
-                    </tr>
-                  );
-                })
+                        {/* 3. Priority Badge Select */}
+                        <td style={{ height: '62px', padding: '8px 16px', boxSizing: 'border-box', overflow: 'hidden' }}>
+                          <select
+                            value={lead.prioridad}
+                            disabled={!isEditable}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={async (e) => {
+                              e.stopPropagation();
+                              await handleUpdatePriority(lead.id, e.target.value);
+                            }}
+                            className="badge"
+                            style={{
+                              cursor: isEditable ? 'pointer' : 'not-allowed',
+                              opacity: isEditable ? 1 : 0.6,
+                              border: '1px solid rgba(255, 255, 255, 0.05)',
+                              outline: 'none',
+                              fontWeight: 600,
+                              fontSize: '11px',
+                              textTransform: 'capitalize',
+                              padding: '4px 20px 4px 8px',
+                              borderRadius: '6px',
+                              appearance: 'none',
+                              backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23ffffff%22%20opacity%3D%220.5%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")',
+                              backgroundRepeat: 'no-repeat',
+                              backgroundPosition: 'right 6px top 50%',
+                              backgroundSize: '8px auto',
+                              backgroundColor: 
+                                lead.prioridad === 'alta' ? 'var(--priority-alta-bg)' :
+                                lead.prioridad === 'media' ? 'var(--priority-media-bg)' :
+                                'var(--priority-baja-bg)',
+                              color:
+                                lead.prioridad === 'alta' ? 'var(--priority-alta-text)' :
+                                lead.prioridad === 'media' ? 'var(--priority-media-text)' :
+                                'var(--priority-baja-text)',
+                              width: '100%',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden'
+                            }}
+                          >
+                            {Object.keys(priorityLabels).map((key) => (
+                              <option key={key} value={key} style={{ backgroundColor: '#0f172a', color: '#fff' }}>
+                                {priorityLabels[key]}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+
+                        {/* 4. Giro (Style) */}
+                        <td style={{ height: '62px', padding: '8px 16px', boxSizing: 'border-box', color: 'var(--text-secondary)', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {lead.giro_nombre || lead.estilo || '-'}
+                        </td>
+
+                        {/* 5. Geolocation */}
+                        <td style={{ height: '62px', padding: '8px 16px', boxSizing: 'border-box', overflow: 'hidden' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', overflow: 'hidden', height: '100%' }}>
+                            <MapPin size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {lead.ciudad ? `${lead.ciudad}, ` : ''}{lead.pais || '-'}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* 6. Contacts details info */}
+                        <td style={{ height: '62px', padding: '8px 16px', boxSizing: 'border-box', overflow: 'hidden' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '2px', fontSize: '12px', height: '100%', overflow: 'hidden' }}>
+                            {mails.length > 0 && mails[0] !== '' && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <Mail size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mails[0]}</span>
+                              </div>
+                            )}
+                            {phones.length > 0 && phones[0] !== '' && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <Phone size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{phones[0]}</span>
+                              </div>
+                            )}
+                            {mails.length === 0 && phones.length === 0 && (
+                              <span style={{ color: 'var(--text-muted)' }}>Sin datos</span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* 7. Lead Score Dynamic with Magic Wand */}
+                        <td style={{ height: '62px', padding: '8px 16px', boxSizing: 'border-box', overflow: 'hidden' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-ai)', fontWeight: 700, overflow: 'hidden', height: '100%' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              <Sparkles size={14} />
+                              <span>{lead.lead_score}</span>
+                            </span>
+                            
+                            {isEditable && (
+                              <button
+                                type="button"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await handleRecalculateAIScore(lead);
+                                }}
+                                style={{
+                                  background: 'rgba(168, 85, 247, 0.1)',
+                                  border: '1px solid rgba(168, 85, 247, 0.2)',
+                                  borderRadius: '4px',
+                                  padding: '4px 6px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer',
+                                  color: 'var(--color-ai)',
+                                  transition: 'all 0.2s',
+                                  marginLeft: 'auto',
+                                  flexShrink: 0
+                                }}
+                                title="Recalcular Score con IA"
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = 'rgba(168, 85, 247, 0.2)';
+                                  e.currentTarget.style.transform = 'scale(1.1)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = 'rgba(168, 85, 247, 0.1)';
+                                  e.currentTarget.style.transform = 'scale(1)';
+                                }}
+                              >
+                                <Wand2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* 8. Updated Time */}
+                        <td style={{ height: '62px', padding: '8px 16px', boxSizing: 'border-box', color: 'var(--text-secondary)', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {formatDate(lead.updated_at)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {currentPage === totalPages ? null : renderEmptyRows(limit - leads.length)}
+                </>
               ) : (
-                <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                    No se encontraron prospectos que coincidan con la búsqueda.
-                  </td>
-                </tr>
+                <>
+                  <tr>
+                    <td colSpan="8" style={{ textAlign: 'center', height: '62px', padding: '8px 16px', boxSizing: 'border-box', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)' }}>
+                      No se encontraron prospectos que coincidan con la búsqueda.
+                    </td>
+                  </tr>
+                  {currentPage === totalPages ? null : renderEmptyRows(limit - 1)}
+                </>
               )}
             </tbody>
           </table>
         </div>
-
         {/* Table Page Pagination Footer */}
-        <div className="pagination-controls">
-          <span>
-            Página <strong>{currentPage}</strong> de <strong>{totalPages}</strong> (<strong>{leads.length}</strong> items cargados)
-          </span>
+        <div className="pagination-controls" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '16px', flexWrap: 'wrap', boxSizing: 'border-box' }}>
+          {/* Column 1: Total Leads Count (Left aligned) */}
+          <div style={{ flex: '1 1 0%', minWidth: '160px', display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
+            <span style={{ fontSize: '13.5px', color: 'var(--text-secondary)', fontWeight: 500 }}>
+              Total: <strong style={{ color: 'var(--color-primary)' }}>{totalCount}</strong> {totalCount === 1 ? 'Prospecto' : 'Prospectos'}
+            </span>
+          </div>
 
-          <div className="pagination-btn-group">
-            {/* Calificar IA button (placed to the left of "Anterior") */}
-            <button
-              className="btn btn-primary"
-              onClick={handleBatchQualifyIA}
-              disabled={isBatchQualifying || loading || !user || !user.miembroId || !hasMyLeads}
-              style={{ 
-                padding: '6px 14px', 
-                display: 'inline-flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                width: '135px',
-                gap: '6px',
-                background: isBatchSuccess 
-                  ? 'linear-gradient(135deg, var(--color-ai) 0%, var(--color-brand-dark) 100%)' 
-                  : 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-brand-dark) 100%)',
-                color: '#FFFFFF',
-                borderColor: isBatchSuccess ? 'var(--color-ai)' : 'var(--color-primary)',
-                cursor: (isBatchQualifying || loading || !user || !user.miembroId || !hasMyLeads) ? 'not-allowed' : 'pointer',
-                opacity: (isBatchQualifying || loading || !user || !user.miembroId || !hasMyLeads) ? 0.5 : 1,
-                transition: 'background 0.5s ease, border-color 0.5s ease, opacity 0.3s ease'
-              }}
-              title={
-                !hasMyLeads 
-                  ? "No hay leads asignados a ti en esta página" 
-                  : "Calificar todos los leads asignados a mí en esta página"
-              }
-            >
-              {isBatchQualifying ? (
-                <div key="loading" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', animation: 'fadeIn 0.3s ease-out' }}>
-                  <RefreshCw className="animate-spin" size={14} />
-                  <span>Calificando...</span>
-                </div>
-              ) : isBatchSuccess ? (
-                <div key="success" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', animation: 'fadeIn 0.5s ease-in-out' }}>
-                  <Check size={14} />
-                  <span>Realizado</span>
-                </div>
-              ) : (
-                <div key="idle" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', animation: 'fadeIn 0.3s ease-out' }}>
-                  <Sparkles size={14} />
-                  <span>Calificar IA</span>
-                </div>
-              )}
-            </button>
-
+          {/* Column 2: Navigation Panel (Centered) */}
+          <div style={{ flex: '1 1 0%', display: 'flex', justifyContent: 'center', alignItems: 'center', minWidth: '280px' }}>
             <button 
               className="btn btn-secondary" 
               onClick={handlePrevPage}
               disabled={offset === 0}
-              style={{ padding: '6px 12px' }}
+              style={{ 
+                padding: '6px 12px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                opacity: offset === 0 ? 0.4 : 1,
+                cursor: offset === 0 ? 'not-allowed' : 'pointer',
+                pointerEvents: offset === 0 ? 'none' : 'auto'
+              }}
             >
               <ChevronLeft size={16} />
-              <span>Anterior</span>
+              <span></span>
             </button>
+            
+            <span style={{ minWidth: '100px', textAlign: 'center', fontWeight: 600, margin: '0 16px', color: 'var(--text-main)', fontSize: '13px', whiteSpace: 'nowrap' }}>
+              Pág. {currentPage} de {totalPages}
+            </span>
 
             <button 
               className="btn btn-secondary" 
               onClick={handleNextPage}
               disabled={offset + limit >= totalCount}
-              style={{ padding: '6px 12px' }}
+              style={{ 
+                padding: '6px 12px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                opacity: offset + limit >= totalCount ? 0.4 : 1,
+                cursor: offset + limit >= totalCount ? 'not-allowed' : 'pointer',
+                pointerEvents: offset + limit >= totalCount ? 'none' : 'auto'
+              }}
             >
               <span>Siguiente</span>
               <ChevronRight size={16} />
             </button>
+          </div>
+
+          {/* Column 3: Page Size Dropdown (Right aligned) */}
+          <div style={{ flex: '1 1 0%', minWidth: '160px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+            <span>Mostrar</span>
+            <select
+              value={limit}
+              onChange={(e) => {
+                const newLimit = parseInt(e.target.value, 10);
+                setLimit(newLimit);
+                localStorage.setItem('temikia_lead_list_limit', newLimit.toString());
+                setOffset(0); // Reset to first page
+              }}
+              className="filter-select"
+              style={{
+                padding: '2px 24px 2px 8px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-card)',
+                color: 'var(--text-main)',
+                fontSize: '12px',
+                cursor: 'pointer',
+                outline: 'none',
+                height: '26px',
+                boxSizing: 'border-box',
+                appearance: 'none',
+                backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 8px top 50%',
+                backgroundSize: '8px auto'
+              }}
+            >
+              <option value={25} style={{ backgroundColor: '#0f172a', color: '#fff' }}>25</option>
+              <option value={50} style={{ backgroundColor: '#0f172a', color: '#fff' }}>50</option>
+              <option value={100} style={{ backgroundColor: '#0f172a', color: '#fff' }}>100</option>
+              <option value={200} style={{ backgroundColor: '#0f172a', color: '#fff' }}>200</option>
+              <option value={500} style={{ backgroundColor: '#0f172a', color: '#fff' }}>500</option>
+              <option value={1000000} style={{ backgroundColor: '#0f172a', color: '#fff' }}>Todo</option>
+            </select>
+            <span>por pág.</span>
           </div>
         </div>
       </div>
