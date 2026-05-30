@@ -1029,7 +1029,7 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
                 pointerEvents: offset + limit >= totalCount ? 'none' : 'auto'
               }}
             >
-              <span>Siguiente</span>
+              <span></span>
               <ChevronRight size={16} />
             </button>
           </div>
