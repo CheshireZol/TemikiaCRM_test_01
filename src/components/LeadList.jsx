@@ -47,7 +47,7 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
     const saved = localStorage.getItem('temikia_lead_list_limit');
     if (saved) {
       const parsed = parseInt(saved, 10);
-      if ([25, 50, 100, 200, 500, 1000000].includes(parsed)) {
+      if ([25, 50, 100, 200].includes(parsed)) {
         return parsed;
       }
     }
@@ -60,6 +60,7 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
   const [sortOrder, setSortOrder] = useState('DESC');
   const [isBatchQualifying, setIsBatchQualifying] = useState(false);
   const [isBatchSuccess, setIsBatchSuccess] = useState(false);
+  const [modalError, setModalError] = useState(null);
   
   // Resizable column widths (persistent across pages & views!)
   const [colWidths, setColWidths] = useState(() => {
@@ -248,7 +249,7 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
       setLeads(prev => prev.map(lead => lead.id === leadId ? { ...lead, estatus: newStatus } : lead));
     } catch (err) {
       console.error(err);
-      alert('No se pudo actualizar el estatus del prospecto.');
+      setModalError('No se pudo actualizar el estatus del prospecto.');
     }
   };
 
@@ -265,7 +266,7 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
       setLeads(prev => prev.map(lead => lead.id === leadId ? { ...lead, prioridad: newPriority } : lead));
     } catch (err) {
       console.error(err);
-      alert('No se pudo actualizar la prioridad del prospecto.');
+      setModalError('No se pudo actualizar la prioridad del prospecto.');
     }
   };
 
@@ -285,7 +286,7 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
       setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, lead_score: newScore } : l));
     } catch (err) {
       console.error(err);
-      alert('No se pudo recalcular el score de este prospecto.');
+      setModalError('No se pudo recalcular el score de este prospecto.');
     }
   };
 
@@ -325,7 +326,7 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
       }, 1000);
     } catch (err) {
       console.error(err);
-      alert('Ocurrió un error al calificar algunos leads. Se recargará la lista.');
+      setModalError('Ocurrió un error al calificar algunos leads. Se recargará la lista.');
       fetchProspects();
     } finally {
       setIsBatchQualifying(false);
@@ -385,6 +386,18 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
     }
     return emptyRows;
   };
+
+  const stickyHeaderStyle = (isSortable = true) => ({
+    position: 'sticky',
+    top: 0,
+    zIndex: 15,
+    backgroundColor: 'var(--bg-table-header)', // Tone slightly darker/cooler than card background, opaque
+    boxShadow: 'inset 0 -1px 0 var(--border-color)', // Preserves crisp bottom border under sticky scroll
+    cursor: isSortable ? 'pointer' : 'default',
+    userSelect: 'none',
+    paddingRight: '12px',
+    verticalAlign: 'middle'
+  });
 
   const currentPage = Math.floor(offset / limit) + 1;
   const totalPages = Math.ceil(totalCount / limit) || 1;
@@ -592,7 +605,7 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
           <button
             className="btn btn-primary"
             onClick={handleBatchQualifyIA}
-            disabled={isBatchQualifying || loading || !user || !user.miembroId || !hasMyLeads}
+            disabled={isBatchQualifying || loading || !user || !user.miembroId || !hasMyLeads || myLeadsOnPage.length > 50}
             style={{ 
               padding: '6px 14px', 
               display: 'inline-flex', 
@@ -605,15 +618,17 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
                 : 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-brand-dark) 100%)',
               color: '#FFFFFF',
               borderColor: isBatchSuccess ? 'var(--color-ai)' : 'var(--color-primary)',
-              cursor: (isBatchQualifying || loading || !user || !user.miembroId || !hasMyLeads) ? 'not-allowed' : 'pointer',
-              opacity: (isBatchQualifying || loading || !user || !user.miembroId || !hasMyLeads) ? 0.5 : 1,
+              cursor: (isBatchQualifying || loading || !user || !user.miembroId || !hasMyLeads || myLeadsOnPage.length > 50) ? 'not-allowed' : 'pointer',
+              opacity: (isBatchQualifying || loading || !user || !user.miembroId || !hasMyLeads || myLeadsOnPage.length > 50) ? 0.5 : 1,
               transition: 'background 0.5s ease, border-color 0.5s ease, opacity 0.3s ease',
               fontSize: '12px'
             }}
             title={
-              !hasMyLeads 
-                ? "No hay leads asignados a ti en esta página" 
-                : "Calificar todos los leads asignados a mí en esta página"
+              myLeadsOnPage.length > 50
+                ? `No se permite calificar más de 50 leads en lote a la vez (tienes ${myLeadsOnPage.length} asignados en esta vista)`
+                : !hasMyLeads 
+                  ? "No hay leads asignados a ti en esta página" 
+                  : "Calificar todos los leads asignados a mí en esta página"
             }
           >
             {isBatchQualifying ? (
@@ -636,7 +651,7 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
         </div>
 
         {/* Dynamic Data Grid */}
-        <div className="table-wrapper" style={{ overflowY: 'auto' }}>
+        <div className="table-wrapper" style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 340px)' }}>
           <table className="leads-table" style={{ tableLayout: 'fixed', width: '100%', borderCollapse: 'collapse' }}>
             <colgroup>
               <col style={{ width: `${colWidths.nombre}px` }} />
@@ -650,68 +665,89 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
             </colgroup>
             <thead>
               <tr>
-                <th onClick={() => handleSort('nombre')} style={{ cursor: 'pointer', position: 'relative', userSelect: 'none', paddingRight: '12px' }}>
+                <th 
+                  onClick={() => handleSort('nombre')} 
+                  style={stickyHeaderStyle(true)}
+                >
                   Nombre Comercial <ArrowUpDown size={12} style={{ marginLeft: '4px', verticalAlign: 'middle' }} />
                   <div 
                     onMouseDown={(e) => handleResizeStart(e, 'nombre')} 
                     onClick={(e) => e.stopPropagation()}
-                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 10, backgroundColor: 'transparent' }}
+                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 20, backgroundColor: 'transparent' }}
                   />
                 </th>
-                <th onClick={() => handleSort('estatus')} style={{ cursor: 'pointer', position: 'relative', userSelect: 'none', paddingRight: '12px' }}>
+                <th 
+                  onClick={() => handleSort('estatus')} 
+                  style={stickyHeaderStyle(true)}
+                >
                   Estatus <ArrowUpDown size={12} style={{ marginLeft: '4px', verticalAlign: 'middle' }} />
                   <div 
                     onMouseDown={(e) => handleResizeStart(e, 'estatus')} 
                     onClick={(e) => e.stopPropagation()}
-                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 10, backgroundColor: 'transparent' }}
+                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 20, backgroundColor: 'transparent' }}
                   />
                 </th>
-                <th onClick={() => handleSort('prioridad')} style={{ cursor: 'pointer', position: 'relative', userSelect: 'none', paddingRight: '12px' }}>
+                <th 
+                  onClick={() => handleSort('prioridad')} 
+                  style={stickyHeaderStyle(true)}
+                >
                   Prioridad <ArrowUpDown size={12} style={{ marginLeft: '4px', verticalAlign: 'middle' }} />
                   <div 
                     onMouseDown={(e) => handleResizeStart(e, 'prioridad')} 
                     onClick={(e) => e.stopPropagation()}
-                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 10, backgroundColor: 'transparent' }}
+                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 20, backgroundColor: 'transparent' }}
                   />
                 </th>
-                <th style={{ position: 'relative', userSelect: 'none', paddingRight: '12px' }}>
+                <th 
+                  style={stickyHeaderStyle(false)}
+                >
                   Giro Comercial
                   <div 
                     onMouseDown={(e) => handleResizeStart(e, 'giro')} 
                     onClick={(e) => e.stopPropagation()}
-                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 10, backgroundColor: 'transparent' }}
+                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 20, backgroundColor: 'transparent' }}
                   />
                 </th>
-                <th style={{ position: 'relative', userSelect: 'none', paddingRight: '12px' }}>
+                <th 
+                  style={stickyHeaderStyle(false)}
+                >
                   Ubicación
                   <div 
                     onMouseDown={(e) => handleResizeStart(e, 'ubicacion')} 
                     onClick={(e) => e.stopPropagation()}
-                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 10, backgroundColor: 'transparent' }}
+                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 20, backgroundColor: 'transparent' }}
                   />
                 </th>
-                <th style={{ position: 'relative', userSelect: 'none', paddingRight: '12px' }}>
+                <th 
+                  style={stickyHeaderStyle(false)}
+                >
                   Datos Contacto
                   <div 
                     onMouseDown={(e) => handleResizeStart(e, 'contacto')} 
                     onClick={(e) => e.stopPropagation()}
-                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 10, backgroundColor: 'transparent' }}
+                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 20, backgroundColor: 'transparent' }}
                   />
                 </th>
-                <th onClick={() => handleSort('lead_score')} style={{ cursor: 'pointer', position: 'relative', userSelect: 'none', paddingRight: '12px' }}>
+                <th 
+                  onClick={() => handleSort('lead_score')} 
+                  style={stickyHeaderStyle(true)}
+                >
                   Score (IA) <ArrowUpDown size={12} style={{ marginLeft: '4px', verticalAlign: 'middle' }} />
                   <div 
                     onMouseDown={(e) => handleResizeStart(e, 'lead_score')} 
                     onClick={(e) => e.stopPropagation()}
-                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 10, backgroundColor: 'transparent' }}
+                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 20, backgroundColor: 'transparent' }}
                   />
                 </th>
-                <th onClick={() => handleSort('updated_at')} style={{ cursor: 'pointer', position: 'relative', userSelect: 'none', paddingRight: '12px' }}>
+                <th 
+                  onClick={() => handleSort('updated_at')} 
+                  style={stickyHeaderStyle(true)}
+                >
                   Última Actividad <ArrowUpDown size={12} style={{ marginLeft: '4px', verticalAlign: 'middle' }} />
                   <div 
                     onMouseDown={(e) => handleResizeStart(e, 'updated_at')} 
                     onClick={(e) => e.stopPropagation()}
-                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 10, backgroundColor: 'transparent' }}
+                    style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '100%', cursor: 'col-resize', zIndex: 20, backgroundColor: 'transparent' }}
                   />
                 </th>
               </tr>
@@ -1068,13 +1104,118 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
               <option value={50} style={{ backgroundColor: '#0f172a', color: '#fff' }}>50</option>
               <option value={100} style={{ backgroundColor: '#0f172a', color: '#fff' }}>100</option>
               <option value={200} style={{ backgroundColor: '#0f172a', color: '#fff' }}>200</option>
-              <option value={500} style={{ backgroundColor: '#0f172a', color: '#fff' }}>500</option>
-              <option value={1000000} style={{ backgroundColor: '#0f172a', color: '#fff' }}>Todo</option>
             </select>
             <span>por pág.</span>
           </div>
         </div>
       </div>
+
+      {/* Premium Blurred Modal Dialog for Error Alerts */}
+      {modalError && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(15, 23, 42, 0.45)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 3000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+          onClick={() => setModalError(null)}
+        >
+          <div 
+            style={{
+              width: '420px',
+              maxWidth: '90vw',
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              borderRadius: '12px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2)',
+              padding: '24px',
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              animation: 'scaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button in top-right corner */}
+            <button
+              type="button"
+              onClick={() => setModalError(null)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '50%',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                e.currentTarget.style.color = '#ef4444';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = 'var(--text-secondary)';
+              }}
+            >
+              <XCircle size={18} />
+            </button>
+
+            {/* Header with error icon */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ef4444',
+                flexShrink: 0
+              }}>
+                <XCircle size={22} />
+              </div>
+              <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-main)' }}>
+                Atención
+              </h4>
+            </div>
+
+            {/* Content Message */}
+            <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              {modalError}
+            </p>
+
+            {/* Footer Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setModalError(null)}
+                style={{ padding: '6px 16px', fontSize: '13px', cursor: 'pointer' }}
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

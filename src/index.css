@@ -17,6 +17,7 @@
   --bg-main: #F8FAFC;
   --bg-card: #FFFFFF;
   --border-color: #E2E8F0;
+  --bg-table-header: #F1F5F9;
   --text-main: #1E293B;
   --text-secondary: #64748B;
   --text-muted: #94A3B8;
@@ -76,6 +77,7 @@
   --bg-main: #020617;
   --bg-card: #0F172A;
   --border-color: #1E293B;
+  --bg-table-header: var(--bg-main);
   --text-main: #F8FAFC;
   --text-secondary: #94A3B8;
   --text-muted: #64748B;
@@ -926,7 +928,7 @@ body {
 }
 
 .leads-table th {
-  background-color: var(--bg-main);
+  background-color: var(--bg-table-header);
   color: var(--text-secondary);
   font-weight: 600;
   padding: 14px 20px;
