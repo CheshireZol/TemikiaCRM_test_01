@@ -499,7 +499,7 @@ const regenerateGreetingMessage = () => {
     setForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleRecalculateScore = () => {
+  const handleRecalculateScore = async () => {
     // Generate virtual object representing current state to score it
     const virtualLead = {
       ...lead,
@@ -515,7 +515,52 @@ const regenerateGreetingMessage = () => {
     };
 
     const newScore = calculateAILeadScore(virtualLead);
-    setLead(prev => ({ ...prev, lead_score: newScore }));
+
+    try {
+      const res = await fetch(`/api/prospectos/${leadId}/score`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead_score: newScore })
+      });
+      if (!res.ok) throw new Error('Error al actualizar score');
+
+      // Update local state instantly
+      setLead(prev => ({ ...prev, lead_score: newScore }));
+      
+      // Trigger save success feedback
+      onSaveSuccess && onSaveSuccess();
+    } catch (err) {
+      console.error(err);
+      alert('No se pudo guardar el score recalculado en el servidor.');
+    }
+  };
+
+  const handleToggleAIAssistant = async () => {
+    if (!isEditable) return;
+    const newValue = !form.asistente_ia_activo;
+    
+    // Update local form state immediately (optimistic UI)
+    setForm(prev => ({ ...prev, asistente_ia_activo: newValue }));
+
+    try {
+      const res = await fetch(`/api/prospectos/${leadId}/asistente-ia`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ asistente_ia_activo: newValue })
+      });
+      if (!res.ok) throw new Error('Error al actualizar asistente IA');
+      
+      // Update lead state as well to stay in sync
+      setLead(prev => ({ ...prev, asistente_ia_activo: newValue }));
+      
+      // Success feedback
+      onSaveSuccess && onSaveSuccess();
+    } catch (err) {
+      console.error(err);
+      alert('No se pudo guardar el estado del asistente IA en el servidor.');
+      // Revert local state
+      setForm(prev => ({ ...prev, asistente_ia_activo: !newValue }));
+    }
   };
 
   // Run the AI Commercial strategy generator and update ficha
@@ -1687,10 +1732,7 @@ ESTADO DEL LEAD SCORE: ${lead.lead_score}/100`;
                   <button
                     type="button"
                     disabled={!isEditable}
-                    onClick={() => {
-                      if (!isEditable) return;
-                      setForm(prev => ({ ...prev, asistente_ia_activo: !prev.asistente_ia_activo }));
-                    }}
+                    onClick={handleToggleAIAssistant}
                     style={{
                       background: form.asistente_ia_activo ? 'var(--color-ai, #a855f7)' : 'rgba(255, 255, 255, 0.1)',
                       border: 'none',

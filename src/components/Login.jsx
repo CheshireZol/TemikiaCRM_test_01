@@ -595,22 +595,6 @@ const Login = ({ onLoginSuccess }) => {
                     </button>
                   )
                 )}
-
-                {/* Usar otro correo button (secondary action, never red!) */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRequires2FA(false);
-                    setCodeDigits(['', '', '', '', '', '']);
-                    setError('');
-                    setSuccessMessage('');
-                    setIsAccountBlocked(false);
-                  }}
-                  className="landing-back-btn"
-                  style={{ fontSize: '13px', color: '#94A3B8', fontWeight: 600, padding: '4px 8px' }}
-                >
-                  Usar otro correo
-                </button>
               </div>
             </form>
           ) : (

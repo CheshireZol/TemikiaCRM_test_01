@@ -12,7 +12,8 @@ import {
   RefreshCw,
   Wand2,
   Eye,
-  XCircle
+  XCircle,
+  Check
 } from 'lucide-react';
 import { parseStringArray, formatDate, calculateAILeadScore } from '../utils.js';
 
@@ -48,6 +49,8 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
   // Sorting State
   const [sortBy, setSortBy] = useState('updated_at');
   const [sortOrder, setSortOrder] = useState('DESC');
+  const [isBatchQualifying, setIsBatchQualifying] = useState(false);
+  const [isBatchSuccess, setIsBatchSuccess] = useState(false);
 
   // Filter States
   const [filters, setFilters] = useState({
@@ -255,8 +258,56 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
     }
   };
 
+  const handleBatchQualifyIA = async () => {
+    if (!user || !user.miembroId) return;
+
+    // Filter leads displayed on the current page that are assigned to the current user
+    const myLeadsOnPage = leads.filter(lead => lead.miembro_id === user.miembroId);
+    if (myLeadsOnPage.length === 0) return;
+
+    try {
+      setIsBatchQualifying(true);
+      
+      const promises = myLeadsOnPage.map(async (lead) => {
+        const newScore = calculateAILeadScore(lead);
+        const res = await fetch(`/api/prospectos/${lead.id}/score`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lead_score: newScore })
+        });
+        if (!res.ok) throw new Error(`Error actualizando lead ${lead.id}`);
+        return { id: lead.id, lead_score: newScore };
+      });
+
+      const updatedScores = await Promise.all(promises);
+
+      // Update local state instantly
+      setLeads(prev => prev.map(lead => {
+        const match = updatedScores.find(item => item.id === lead.id);
+        return match ? { ...lead, lead_score: match.lead_score } : lead;
+      }));
+
+      // Show temporary green success state for 1 second
+      setIsBatchSuccess(true);
+      setTimeout(() => {
+        setIsBatchSuccess(false);
+      }, 1000);
+    } catch (err) {
+      console.error(err);
+      alert('Ocurrió un error al calificar algunos leads. Se recargará la lista.');
+      fetchProspects();
+    } finally {
+      setIsBatchQualifying(false);
+    }
+  };
+
   const currentPage = Math.floor(offset / limit) + 1;
   const totalPages = Math.ceil(totalCount / limit) || 1;
+
+  const myLeadsOnPage = user && user.miembroId 
+    ? leads.filter(lead => lead.miembro_id === user.miembroId) 
+    : [];
+  const hasMyLeads = myLeadsOnPage.length > 0;
 
   if (loading && leads.length === 0) {
     return (
@@ -727,6 +778,51 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
           </span>
 
           <div className="pagination-btn-group">
+            {/* Calificar IA button (placed to the left of "Anterior") */}
+            <button
+              className="btn btn-primary"
+              onClick={handleBatchQualifyIA}
+              disabled={isBatchQualifying || loading || !user || !user.miembroId || !hasMyLeads}
+              style={{ 
+                padding: '6px 14px', 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                width: '135px',
+                gap: '6px',
+                background: isBatchSuccess 
+                  ? 'linear-gradient(135deg, var(--color-ai) 0%, var(--color-brand-dark) 100%)' 
+                  : 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-brand-dark) 100%)',
+                color: '#FFFFFF',
+                borderColor: isBatchSuccess ? 'var(--color-ai)' : 'var(--color-primary)',
+                cursor: (isBatchQualifying || loading || !user || !user.miembroId || !hasMyLeads) ? 'not-allowed' : 'pointer',
+                opacity: (isBatchQualifying || loading || !user || !user.miembroId || !hasMyLeads) ? 0.5 : 1,
+                transition: 'background 0.5s ease, border-color 0.5s ease, opacity 0.3s ease'
+              }}
+              title={
+                !hasMyLeads 
+                  ? "No hay leads asignados a ti en esta página" 
+                  : "Calificar todos los leads asignados a mí en esta página"
+              }
+            >
+              {isBatchQualifying ? (
+                <div key="loading" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', animation: 'fadeIn 0.3s ease-out' }}>
+                  <RefreshCw className="animate-spin" size={14} />
+                  <span>Calificando...</span>
+                </div>
+              ) : isBatchSuccess ? (
+                <div key="success" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', animation: 'fadeIn 0.5s ease-in-out' }}>
+                  <Check size={14} />
+                  <span>Realizado</span>
+                </div>
+              ) : (
+                <div key="idle" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', animation: 'fadeIn 0.3s ease-out' }}>
+                  <Sparkles size={14} />
+                  <span>Calificar IA</span>
+                </div>
+              )}
+            </button>
+
             <button 
               className="btn btn-secondary" 
               onClick={handlePrevPage}
@@ -736,6 +832,7 @@ const LeadList = ({ user, searchQuery, setSearchQuery, onLeadClick, triggerRefre
               <ChevronLeft size={16} />
               <span>Anterior</span>
             </button>
+
             <button 
               className="btn btn-secondary" 
               onClick={handleNextPage}
